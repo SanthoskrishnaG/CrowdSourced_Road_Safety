@@ -3,31 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Road Safety Platform - API Test Client</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Road Problem Public Map | AI-Powered Road Safety</title>
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="map-view-active">
     <div class="glow-bg"></div>
-    <main class="container">
-        <header>
-            <div class="logo">
-                <span class="pulse-icon"></span>
-                <h1>Road Infrastructure Platform</h1>
-            </div>
-            <p class="subtitle">API Diagnostic & Monitoring Console</p>
-        </header>
 
-        <section class="console-box">
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="pulse-icon"></span>
+            <span class="brand-title">Road Infrastructure Map</span>
+            <span class="version-tag">Phase 5</span>
+        </div>
+        <div class="nav-actions">
+            <div class="stats-badge">
+                <span class="stats-dot"></span>
+                <span id="active-count">0</span> Issues Tracked
+            </div>
+            <button class="btn btn-outline btn-sm" id="btn-toggle-diagnostics">API Diagnostics</button>
+        </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <main class="main-layout">
+        <!-- Sidebar Controls & Filters -->
+        <aside class="sidebar-panel">
+            <div class="panel-card filters-card">
+                <div class="card-header">
+                    <h3>Filter Issues</h3>
+                    <button class="btn-link" id="btn-reset-filters">Reset</button>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="filter-category">Problem Category</label>
+                    <select id="filter-category" class="form-select">
+                        <option value="">All Categories</option>
+                        <option value="POTHOLE">🕳️ Pothole</option>
+                        <option value="ROAD_DAMAGE">⚠️ Road Damage</option>
+                        <option value="BROKEN_STREETLIGHT">💡 Broken Streetlight</option>
+                        <option value="BLOCKED_ROAD">🚧 Blocked Road</option>
+                        <option value="GARBAGE">🗑️ Garbage / Debris</option>
+                        <option value="FLOODING">🌊 Flooding</option>
+                        <option value="DAMAGED_SIGN">🛑 Damaged Sign</option>
+                        <option value="OBSTRUCTION">🌲 Obstruction</option>
+                        <option value="OTHER">📌 Other</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-severity">Severity Level</label>
+                    <select id="filter-severity" class="form-select">
+                        <option value="">All Severities</option>
+                        <option value="CRITICAL">🔴 Critical Hazard</option>
+                        <option value="HIGH">🟠 High Severity</option>
+                        <option value="MEDIUM">🟡 Medium Severity</option>
+                        <option value="LOW">🟢 Low Severity</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-status">Resolution Status</label>
+                    <select id="filter-status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="REPORTED">Reported</option>
+                        <option value="VERIFIED">Verified</option>
+                        <option value="ASSIGNED">Assigned</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="FIXED">Fixed</option>
+                        <option value="CLOSED">Closed</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary w-100" id="btn-apply-filters">
+                    Refresh Map Data
+                </button>
+            </div>
+
+            <!-- Severity Legend -->
+            <div class="panel-card legend-card">
+                <h4>Severity Legend</h4>
+                <div class="legend-list">
+                    <div class="legend-item"><span class="legend-color critical"></span> Critical Risk</div>
+                    <div class="legend-item"><span class="legend-color high"></span> High Severity</div>
+                    <div class="legend-item"><span class="legend-color medium"></span> Medium Severity</div>
+                    <div class="legend-item"><span class="legend-color low"></span> Minor / Low</div>
+                </div>
+            </div>
+
+            <!-- Live Metrics Box -->
+            <div class="panel-card metrics-card">
+                <div class="metric-row">
+                    <div class="metric-col">
+                        <div class="metric-val" id="metric-critical">0</div>
+                        <div class="metric-lbl">Critical</div>
+                    </div>
+                    <div class="metric-col">
+                        <div class="metric-val" id="metric-in-progress">0</div>
+                        <div class="metric-lbl">In Action</div>
+                    </div>
+                    <div class="metric-col">
+                        <div class="metric-val" id="metric-fixed">0</div>
+                        <div class="metric-lbl">Resolved</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <section class="map-wrapper">
+            <div id="map" class="map-canvas"></div>
+            
+            <!-- Quick View / Inspector Drawer -->
+            <div class="report-drawer" id="report-drawer">
+                <div class="drawer-header">
+                    <div class="drawer-title" id="drawer-category">Problem Details</div>
+                    <button class="drawer-close" id="drawer-close-btn">&times;</button>
+                </div>
+                <div class="drawer-body" id="drawer-body">
+                    <div class="drawer-empty-state">Click any marker on the map to inspect its details and evidence.</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Diagnostic Console (Phase 1 legacy preserved) -->
+    <div class="modal-backdrop" id="diagnostic-modal">
+        <div class="console-box modal-content">
             <div class="console-header">
                 <div class="win-buttons">
-                    <span class="btn-dot close"></span>
+                    <span class="btn-dot close" id="modal-close-btn"></span>
                     <span class="btn-dot minimize"></span>
                     <span class="btn-dot maximize"></span>
                 </div>
-                <div class="console-title">Backend API Health Checker</div>
+                <div class="console-title">Backend API Diagnostics</div>
             </div>
             <div class="console-body">
                 <div class="status-panel">
@@ -38,15 +159,16 @@
                     <button class="btn btn-primary" id="btn-check">Run Diagnostic</button>
                 </div>
                 <div class="console-logs" id="logs">
-                    <div class="log-line system">[SYSTEM] Console initialized. Ready to test backend.</div>
+                    <div class="log-line system">[SYSTEM] Diagnostics console ready.</div>
                 </div>
             </div>
-        </section>
+        </div>
+    </div>
 
-        <footer>
-            <p>AI-Powered Crowdsourced Road Infrastructure Monitoring & Management Platform — Phase 1</p>
-        </footer>
-    </main>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

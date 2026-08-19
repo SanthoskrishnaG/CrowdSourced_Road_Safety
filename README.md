@@ -12,13 +12,14 @@ This platform acts as a centralized crowdsourced hub, leveraging community repor
 
 ## Planned Features
 - **Citizen Reporting Portal**: High-quality report submission with geo-coordinates and image attachments.
+- **Interactive Road Problem Map**: Public GIS map using Leaflet.js and OpenStreetMap with marker clustering, filtering, and problem inspection.
 - **AI Classification**: Automated issue categorization (e.g., distinguishing between a pothole and a damaged sign).
 - **Intelligent Priority Engine**: Automated risk-assessment scoring based on severity and location metadata.
 - **Geospatial Analysis**: Map interfaces tracking reporting hot-spots.
 - **Authority Console**: Admin dashboards for tracking reports, workflow assignments, and status updates.
 
 > [!NOTE]
-> *Advanced AI features, duplicate detection, and advanced geospatial maps will be introduced in subsequent development phases.*
+> *Advanced AI features and duplicate detection will be introduced in subsequent development phases.*
 
 ---
 
@@ -36,7 +37,7 @@ Phase 2 introduced a complete security stack for user registration, authenticati
 ---
 
 ## Road Infrastructure Problem Reporting & Evidence
-Phases 3 & 4 establish the core reporting, evidence storage, and geospatial calculation pipelines.
+Phases 3, 4, & 5 establish the core reporting, evidence storage, geospatial calculation, and public map visualization pipelines.
 
 ### Extensible Problem Categories
 - `POTHOLE`, `ROAD_DAMAGE`, `BROKEN_STREETLIGHT`, `BLOCKED_ROAD`, `GARBAGE`, `FLOODING`, `DAMAGED_SIGN`, `OBSTRUCTION`, `OTHER`.
@@ -59,9 +60,19 @@ Phases 3 & 4 establish the core reporting, evidence storage, and geospatial calc
 - Optional GPS accuracy tracking (`location_accuracy` in meters).
 - High-precision **Haversine formula** implementation (`haversine_distance`) computing great-circle distances in meters across two coordinate pairs.
 
+### Interactive Public Map (Phase 5)
+- Open-source mapping stack: **Leaflet.js** + **OpenStreetMap** + **Leaflet.markercluster** (zero paid map API dependencies).
+- Custom color-coded marker pins reflecting category and severity.
+- Marker clustering to handle high-density report clusters gracefully.
+- Problem inspector drawer showing evidence thumbnail previews, status, severity, and timestamps.
+- **Privacy Guaranteed**: Public map endpoint explicitly strips citizen emails, phone numbers, and reporter identities.
+
 ---
 
 ## API Endpoints
+
+### Public Map
+- `GET /api/v1/reports/map`: Lightweight geospatial report feed. Supports attribute filters (`category`, `severity`, `status`) and viewport bounding box filters (`min_lat`, `max_lat`, `min_lon`, `max_lon`).
 
 ### Authentication
 - `POST /api/v1/auth/register`: Create a new user account.
@@ -92,8 +103,8 @@ Phases 3 & 4 establish the core reporting, evidence storage, and geospatial calc
 
 ## Technology Stack
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, Uvicorn, bcrypt, PyJWT, email-validator, Pillow, python-multipart
+- **Frontend**: HTML5, Vanilla CSS (Glassmorphism / Dark Theme), Vanilla JavaScript, Leaflet.js, OpenStreetMap, Leaflet.markercluster
 - **Development & Testing**: pytest, python-dotenv, Docker, Docker Compose, Git
-- **Frontend**: Minimal diagnostic CSS/JS test panel
 
 ---
 
@@ -105,19 +116,21 @@ Phases 3 & 4 establish the core reporting, evidence storage, and geospatial calc
 │   │   ├── api/              # Versioned API routes (v1) & global dependencies
 │   │   ├── core/             # Application config, security helpers, and DB engines
 │   │   ├── models/           # SQLAlchemy Declarative Models (User, RoadReport, ReportImage)
-│   │   ├── schemas/          # Pydantic validation schemas
+│   │   ├── schemas/          # Pydantic validation schemas (User, Report, Image, Map)
 │   │   ├── services/         # Core business logic handlers
 │   │   ├── repositories/     # Database querying layer
 │   │   ├── db/               # Helper DB scripts/utilities
 │   │   ├── utils/            # Helper modules (security, geo, image processing)
 │   │   └── main.py           # Application entrypoint
-│   ├── tests/                # Automated pytest suites
+│   ├── tests/                # Automated pytest suites (auth, reports, geo, images, map)
 │   ├── alembic.ini           # Alembic Configuration settings
 │   ├── Dockerfile            # Backend Docker instructions
 │   └── requirements.txt      # Python dependencies
-├── frontend/                 # Static asset test client
+├── frontend/                 # Interactive Map & Diagnostic Portal
 │   ├── css/
+│   │   └── style.css
 │   ├── js/
+│   │   └── app.js
 │   └── index.html
 ├── uploads/                  # User image upload volume & static storage
 ├── scripts/                  # Management scripts
@@ -156,14 +169,17 @@ Ensure you have **Docker** and **Docker Compose** installed.
    ```
    *This command builds the backend container, starts a PostgreSQL database container, performs necessary status checks, and boots the FastAPI server at `http://localhost:8000`.*
 
-3. **Verify Health Check Endpoint**:
+3. **Open the Interactive Map**:
+   - Open `frontend/index.html` in your browser to explore the map, filter road issues, and inspect evidence.
+
+4. **Verify Health Check Endpoint**:
    - Access `http://localhost:8000/api/v1/health` via browser or test tools.
    - Response: `{"status": "healthy"}`
 
-4. **Interactive API Documentation & Testing**:
+5. **Interactive API Documentation & Testing**:
    - OpenAPI documentation is served at `http://localhost:8000/docs`. You can register/login, submit reports, upload images, and test authorization directly through the Swagger UI.
 
-5. **Alembic Database Migrations**:
+6. **Alembic Database Migrations**:
    If modifying base models, run migrations via:
    ```bash
    docker compose exec backend alembic revision --autogenerate -m "description"
@@ -177,4 +193,4 @@ Run tests inside the active running backend Docker container:
 ```bash
 docker compose exec backend pytest
 ```
-*Tests verify application startup, database connectivity, authentication, reports lifecycle, image processing pipelines, and geospatial calculations.*
+*Tests verify application startup, database connectivity, authentication, reports lifecycle, image processing pipelines, geospatial calculations, and public map feeds.*
