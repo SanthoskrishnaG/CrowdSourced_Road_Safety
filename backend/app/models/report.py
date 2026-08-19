@@ -83,10 +83,18 @@ class RoadReport(Base):
 
     # Relationships
     reporter = relationship("User", back_populates="reports")
+    issue_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("issues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    issue = relationship("Issue", back_populates="reports")
     images = relationship(
         "ReportImage",
         back_populates="report",
         cascade="all, delete-orphan",
         order_by="ReportImage.uploaded_at"
     )
+
 

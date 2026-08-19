@@ -6,25 +6,32 @@ A modern, production-oriented web platform that empowers citizens to report publ
 
 ## Purpose & Problem Statement
 Poorly maintained infrastructure leads to traffic accidents, economic delays, and general safety hazards. Currently, reporting mechanisms are fragmented and manual. 
-This platform acts as a centralized crowdsourced hub, leveraging community reports to flag hazards and utilizing AI to categorize issues, remove duplicates, and calculate priority scores to optimize municipal repair workflows.
+This platform acts as a centralized crowdsourced hub, leveraging community reports to flag hazards, merging duplicate reports into canonical issues, and calculating priority scores to optimize municipal repair workflows.
 
 ---
 
-## Planned Features
-- **Citizen Reporting Portal**: High-quality report submission with geo-coordinates and image attachments.
-- **Interactive Road Problem Map**: Public GIS map using Leaflet.js and OpenStreetMap with marker clustering, filtering, and problem inspection.
-- **AI Classification**: Automated issue categorization (e.g., distinguishing between a pothole and a damaged sign).
-- **Intelligent Priority Engine**: Automated risk-assessment scoring based on severity and location metadata.
-- **Geospatial Analysis**: Map interfaces tracking reporting hot-spots.
-- **Authority Console**: Admin dashboards for tracking reports, workflow assignments, and status updates.
+## Core Architecture: Reports vs Canonical Issues
+The platform establishes a strict architectural boundary between citizen submissions and underlying municipal problems:
+- **`RoadReport`**: An individual submission from a citizen containing title, description, timestamp, coordinates, and photo evidence.
+- **`Issue`**: The canonical underlying road problem tracked by authorities. Multiple citizen reports regarding the same problem automatically merge into one canonical `Issue`.
 
-> [!NOTE]
-> *Advanced AI features and duplicate detection will be introduced in subsequent development phases.*
+---
+
+## Intelligent Duplicate Detection (Phase 6)
+When a citizen creates a report, the system evaluates active issues within proximity using a multi-factor deterministic scoring engine:
+
+$$\text{Score} = \frac{w_{\text{loc}} \cdot S_{\text{loc}} + w_{\text{cat}} \cdot S_{\text{cat}} + w_{\text{time}} \cdot S_{\text{time}} + w_{\text{img}} \cdot S_{\text{img}}}{w_{\text{total}}}$$
+
+1. **Geographic Proximity ($S_{\text{loc}}$)**: Haversine distance calculations ($d \le 15\text{m} \to 1.0$, linear decay to $0.0$ at $50\text{m}$).
+2. **Category Taxonomy ($S_{\text{cat}}$)**: Exact matches ($1.0$), related taxonomy pairs ($0.4 - 0.6$, e.g. `POTHOLE` $\leftrightarrow$ `ROAD_DAMAGE`), or distinct ($0.0$).
+3. **Time Proximity ($S_{\text{time}}$)**: Recency scoring ($1.0$ within 24h, decaying to $0.1$ at 30 days).
+4. **Perceptual Image Hashing ($S_{\text{img}}$)**: 64-bit difference hashing (dHash) with Hamming distance comparison via Pillow.
+
+If $\text{Score} \ge 0.65$, the report merges into the existing canonical `Issue`, incrementing `report_count` and upgrading severity if applicable. Otherwise, a new canonical `Issue` is spawned. Detailed documentation is available in [docs/duplicate_detection.md](file:///c:/Users/Santhoskrishna/Documents/Crowdsourced%20Road%20Safety/docs/duplicate_detection.md).
 
 ---
 
 ## Authentication & Authorization Architecture
-Phase 2 introduced a complete security stack for user registration, authentication, and role-based permissions access:
 - **Password Security**: Passwords are secure-hashed using `bcrypt` and are never saved or exposed in plain text.
 - **JWT Authentication**: Secure Bearer tokens are produced upon login using `PyJWT` (algorithm `HS256`).
 - **Role-Based Access Control (RBAC)**: Fine-grained permissions are enforced server-side.
@@ -36,40 +43,11 @@ Phase 2 introduced a complete security stack for user registration, authenticati
 
 ---
 
-## Road Infrastructure Problem Reporting & Evidence
-Phases 3, 4, & 5 establish the core reporting, evidence storage, geospatial calculation, and public map visualization pipelines.
-
-### Extensible Problem Categories
-- `POTHOLE`, `ROAD_DAMAGE`, `BROKEN_STREETLIGHT`, `BLOCKED_ROAD`, `GARBAGE`, `FLOODING`, `DAMAGED_SIGN`, `OBSTRUCTION`, `OTHER`.
-
-### Report Severity Levels
-- `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
-
-### Status Transition Workflow
-- `REPORTED` ➔ `VERIFIED` ➔ `ASSIGNED` ➔ `IN_PROGRESS` ➔ `FIXED` ➔ `CLOSED` ➔ `REJECTED`.
-- *Only users with authority or admin rights are allowed to modify report statuses.*
-- *Citizens are restricted to updating or deleting their own submitted reports, and only while the report remains in `REPORTED` status.*
-
-### Photographic Evidence & Image Processing
-- Supported formats: **JPG**, **JPEG**, **PNG**, **WEBP** (max 5 MB).
-- Pillow-based validation, automatic EXIF orientation normalization, and `300x300` thumbnail generation.
-- Secure UUID-based storage isolated per report preventing directory traversal attacks.
-
-### Geolocation & Spatial Utilities
-- Coordinate validation: Latitude `[-90, 90]` and Longitude `[-180, 180]`.
-- Optional GPS accuracy tracking (`location_accuracy` in meters).
-- High-precision **Haversine formula** implementation (`haversine_distance`) computing great-circle distances in meters across two coordinate pairs.
-
-### Interactive Public Map (Phase 5)
-- Open-source mapping stack: **Leaflet.js** + **OpenStreetMap** + **Leaflet.markercluster** (zero paid map API dependencies).
-- Custom color-coded marker pins reflecting category and severity.
-- Marker clustering to handle high-density report clusters gracefully.
-- Problem inspector drawer showing evidence thumbnail previews, status, severity, and timestamps.
-- **Privacy Guaranteed**: Public map endpoint explicitly strips citizen emails, phone numbers, and reporter identities.
-
----
-
 ## API Endpoints
+
+### Canonical Issues (Phase 6)
+- `GET /api/v1/issues`: List canonical road issues with pagination (`page`, `page_size`) and filters (`category`, `severity`, `status`).
+- `GET /api/v1/issues/{id}`: Detailed view of a canonical issue including `report_count` and nested contributing reports list.
 
 ### Public Map
 - `GET /api/v1/reports/map`: Lightweight geospatial report feed. Supports attribute filters (`category`, `severity`, `status`) and viewport bounding box filters (`min_lat`, `max_lat`, `min_lon`, `max_lon`).
@@ -81,10 +59,10 @@ Phases 3, 4, & 5 establish the core reporting, evidence storage, geospatial calc
 - `GET /api/v1/auth/me`: Get the current logged-in user profile (Requires Bearer Token).
 
 ### Road Reports
-- `POST /api/v1/reports`: Create a new road report (Requires Bearer Token).
+- `POST /api/v1/reports`: Create a new road report and trigger duplicate detection (Requires Bearer Token).
 - `GET /api/v1/reports`: Get a list of reports. Supports pagination (`page`, `page_size`) and filters (`category`, `severity`, `status`).
 - `GET /api/v1/reports/my`: Get all reports submitted by the current authenticated citizen.
-- `GET /api/v1/reports/{id}`: Get detailed view of a report by UUID, including attached images.
+- `GET /api/v1/reports/{id}`: Get detailed view of a report by UUID, including attached images and `issue_id`.
 - `PATCH /api/v1/reports/{id}`: Modify report attributes.
 - `DELETE /api/v1/reports/{id}`: Delete a report.
 
@@ -115,14 +93,14 @@ Phases 3, 4, & 5 establish the core reporting, evidence storage, geospatial calc
 │   ├── app/
 │   │   ├── api/              # Versioned API routes (v1) & global dependencies
 │   │   ├── core/             # Application config, security helpers, and DB engines
-│   │   ├── models/           # SQLAlchemy Declarative Models (User, RoadReport, ReportImage)
-│   │   ├── schemas/          # Pydantic validation schemas (User, Report, Image, Map)
-│   │   ├── services/         # Core business logic handlers
+│   │   ├── models/           # SQLAlchemy Models (User, RoadReport, ReportImage, Issue)
+│   │   ├── schemas/          # Pydantic validation schemas (User, Report, Image, Map, Issue)
+│   │   ├── services/         # Duplicate detection and business logic handlers
 │   │   ├── repositories/     # Database querying layer
 │   │   ├── db/               # Helper DB scripts/utilities
 │   │   ├── utils/            # Helper modules (security, geo, image processing)
 │   │   └── main.py           # Application entrypoint
-│   ├── tests/                # Automated pytest suites (auth, reports, geo, images, map)
+│   ├── tests/                # Automated pytest suites (auth, reports, geo, images, map, duplicates)
 │   ├── alembic.ini           # Alembic Configuration settings
 │   ├── Dockerfile            # Backend Docker instructions
 │   └── requirements.txt      # Python dependencies
@@ -134,7 +112,7 @@ Phases 3, 4, & 5 establish the core reporting, evidence storage, geospatial calc
 │   └── index.html
 ├── uploads/                  # User image upload volume & static storage
 ├── scripts/                  # Management scripts
-├── docs/                     # Project documentation assets
+├── docs/                     # Documentation (duplicate_detection.md)
 ├── docker-compose.yml        # Docker compose configuration
 ├── .env.example              # Environment variables template
 └── README.md                 # Project handbook
@@ -148,43 +126,12 @@ The application reads settings using Pydantic Settings. Duplicate `.env.example`
 - `SECRET_KEY`: Security salt configuration.
 - `DATABASE_URL`: Connection string for SQLAlchemy (PostgreSQL).
 - `UPLOAD_DIRECTORY`: Root directory where report files are stored.
-
----
-
-## Local Setup
-
-### Prerequisite
-Ensure you have **Docker** and **Docker Compose** installed.
-
-### Setup Instructions
-
-1. **Clone the repository and copy the env setup**:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Spin up PostgreSQL & Backend using Docker Compose**:
-   ```bash
-   docker compose up --build
-   ```
-   *This command builds the backend container, starts a PostgreSQL database container, performs necessary status checks, and boots the FastAPI server at `http://localhost:8000`.*
-
-3. **Open the Interactive Map**:
-   - Open `frontend/index.html` in your browser to explore the map, filter road issues, and inspect evidence.
-
-4. **Verify Health Check Endpoint**:
-   - Access `http://localhost:8000/api/v1/health` via browser or test tools.
-   - Response: `{"status": "healthy"}`
-
-5. **Interactive API Documentation & Testing**:
-   - OpenAPI documentation is served at `http://localhost:8000/docs`. You can register/login, submit reports, upload images, and test authorization directly through the Swagger UI.
-
-6. **Alembic Database Migrations**:
-   If modifying base models, run migrations via:
-   ```bash
-   docker compose exec backend alembic revision --autogenerate -m "description"
-   docker compose exec backend alembic upgrade head
-   ```
+- `DUPLICATE_SCORE_THRESHOLD`: Minimum similarity threshold for merging reports (default `0.65`).
+- `DUPLICATE_DISTANCE_THRESHOLD_METERS`: Max search radius for duplicates in meters (default `50.0`).
+- `WEIGHT_LOCATION`: Location score weight (default `0.40`).
+- `WEIGHT_CATEGORY`: Category taxonomy weight (default `0.30`).
+- `WEIGHT_TIME`: Time decay weight (default `0.15`).
+- `WEIGHT_IMAGE`: Perceptual dHash weight (default `0.15`).
 
 ---
 
@@ -193,4 +140,4 @@ Run tests inside the active running backend Docker container:
 ```bash
 docker compose exec backend pytest
 ```
-*Tests verify application startup, database connectivity, authentication, reports lifecycle, image processing pipelines, geospatial calculations, and public map feeds.*
+*Tests verify application startup, database connectivity, authentication, reports lifecycle, image processing pipelines, geospatial calculations, public map feeds, and automatic duplicate detection workflows.*

@@ -36,12 +36,14 @@ class ReportUpdate(BaseModel):
 class ReportResponse(ReportBase):
     id: UUID
     reporter_id: UUID
+    issue_id: Optional[UUID] = None
     status: ReportStatus
     created_at: datetime
     updated_at: datetime
     images: List[ReportImageResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 
