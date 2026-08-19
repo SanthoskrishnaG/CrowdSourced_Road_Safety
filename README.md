@@ -23,7 +23,7 @@ This platform acts as a centralized crowdsourced hub, leveraging community repor
 ---
 
 ## Authentication & Authorization Architecture
-Phase 2 introduces a complete security stack for user registration, authentication, and role-based permissions access:
+Phase 2 introduced a complete security stack for user registration, authentication, and role-based permissions access:
 - **Password Security**: Passwords are secure-hashed using `bcrypt` and are never saved or exposed in plain text.
 - **JWT Authentication**: Secure Bearer tokens are produced upon login using `PyJWT` (algorithm `HS256`).
 - **Role-Based Access Control (RBAC)**: Fine-grained permissions are enforced server-side.
@@ -35,12 +35,37 @@ Phase 2 introduces a complete security stack for user registration, authenticati
 
 ---
 
+## Road Infrastructure Problem Reporting
+Phase 3 establishes the core reporting database representation and validation mechanics.
+
+### Extensible Problem Categories
+- `POTHOLE`, `ROAD_DAMAGE`, `BROKEN_STREETLIGHT`, `BLOCKED_ROAD`, `GARBAGE`, `FLOODING`, `DAMAGED_SIGN`, `OBSTRUCTION`, `OTHER`.
+
+### Report Severity Levels
+- `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
+
+### Status Transition Workflow
+- `REPORTED` ➔ `VERIFIED` ➔ `ASSIGNED` ➔ `IN_PROGRESS` ➔ `FIXED` ➔ `CLOSED` ➔ `REJECTED`.
+- *Only users with authority or admin rights are allowed to modify report statuses.*
+- *Citizens are restricted to updating or deleting their own submitted reports, and only while the report remains in `REPORTED` status.*
+
+---
+
 ## API Endpoints
 
 ### Authentication
 - `POST /api/v1/auth/register`: Create a new user account.
 - `POST /api/v1/auth/login`: Authenticate credentials and receive a JWT.
+- `POST /api/v1/auth/logout`: Log out and confirm token invalidation request.
 - `GET /api/v1/auth/me`: Get the current logged-in user profile (Requires Bearer Token).
+
+### Road Reports
+- `POST /api/v1/reports`: Create a new road report (Requires Bearer Token).
+- `GET /api/v1/reports`: Get a list of reports. Supports pagination (`page`, `page_size`) and filters (`category`, `severity`, `status`).
+- `GET /api/v1/reports/my`: Get all reports submitted by the current authenticated citizen.
+- `GET /api/v1/reports/{id}`: Get detailed view of a report by UUID.
+- `PATCH /api/v1/reports/{id}`: Modify report attributes (Citizens own reports only if status is `REPORTED`; Authorities/Admins can modify status/attributes of any report).
+- `DELETE /api/v1/reports/{id}`: Delete a report (Citizens own reports only if status is `REPORTED`; Admins can delete any report).
 
 ### Diagnostics
 - `GET /api/v1/health`: Server status and DB accessibility checks.
@@ -48,7 +73,7 @@ Phase 2 introduces a complete security stack for user registration, authenticati
 ---
 
 ## Technology Stack
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, Uvicorn, bcrypt, PyJWT
+- **Backend**: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, Uvicorn, bcrypt, PyJWT, email-validator
 - **Development & Testing**: pytest, python-dotenv, Docker, Docker Compose, Git
 - **Frontend**: Minimal diagnostic CSS/JS test panel
 
@@ -61,7 +86,7 @@ Phase 2 introduces a complete security stack for user registration, authenticati
 │   ├── app/
 │   │   ├── api/              # Versioned API routes (v1) & global dependencies
 │   │   ├── core/             # Application config, security helpers, and DB engines
-│   │   ├── models/           # SQLAlchemy Declarative Models (User, etc.)
+│   │   ├── models/           # SQLAlchemy Declarative Models (User, RoadReport, etc.)
 │   │   ├── schemas/          # Pydantic validation schemas
 │   │   ├── services/         # Core business logic handlers
 │   │   ├── repositories/     # Database querying layer
@@ -134,4 +159,4 @@ Run tests inside the active running backend Docker container:
 ```bash
 docker compose exec backend pytest
 ```
-*Tests verify backend application startup, health-check responsiveness, database engine connectivity, and authentication & authorization pathways.*
+*Tests verify backend application startup, health-check responsiveness, database engine connectivity, and authentication, authorization, and report tracking pathways.*
