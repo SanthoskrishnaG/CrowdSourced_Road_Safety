@@ -22,8 +22,33 @@ This platform acts as a centralized crowdsourced hub, leveraging community repor
 
 ---
 
+## Authentication & Authorization Architecture
+Phase 2 introduces a complete security stack for user registration, authentication, and role-based permissions access:
+- **Password Security**: Passwords are secure-hashed using `bcrypt` and are never saved or exposed in plain text.
+- **JWT Authentication**: Secure Bearer tokens are produced upon login using `PyJWT` (algorithm `HS256`).
+- **Role-Based Access Control (RBAC)**: Fine-grained permissions are enforced server-side.
+
+### System Roles
+1. **`CITIZEN`**: Can submit reports, view own submitted reports, and browse public issues.
+2. **`AUTHORITY`**: Can view assigned issues, verify reporting accuracy, assign tasks, and update statuses.
+3. **`ADMIN`**: Full platform control, authority profile provisioning, and user administration.
+
+---
+
+## API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register`: Create a new user account.
+- `POST /api/v1/auth/login`: Authenticate credentials and receive a JWT.
+- `GET /api/v1/auth/me`: Get the current logged-in user profile (Requires Bearer Token).
+
+### Diagnostics
+- `GET /api/v1/health`: Server status and DB accessibility checks.
+
+---
+
 ## Technology Stack
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, Uvicorn
+- **Backend**: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, Uvicorn, bcrypt, PyJWT
 - **Development & Testing**: pytest, python-dotenv, Docker, Docker Compose, Git
 - **Frontend**: Minimal diagnostic CSS/JS test panel
 
@@ -34,9 +59,9 @@ This platform acts as a centralized crowdsourced hub, leveraging community repor
 ├── backend/
 │   ├── alembic/              # Database migration history
 │   ├── app/
-│   │   ├── api/              # Versioned API routes (v1)
-│   │   ├── core/             # Application config and DB engines
-│   │   ├── models/           # SQLAlchemy Declarative Models
+│   │   ├── api/              # Versioned API routes (v1) & global dependencies
+│   │   ├── core/             # Application config, security helpers, and DB engines
+│   │   ├── models/           # SQLAlchemy Declarative Models (User, etc.)
 │   │   ├── schemas/          # Pydantic validation schemas
 │   │   ├── services/         # Core business logic handlers
 │   │   ├── repositories/     # Database querying layer
@@ -92,8 +117,8 @@ Ensure you have **Docker** and **Docker Compose** installed.
    - Access `http://localhost:8000/api/v1/health` via browser or test tools.
    - Response: `{"status": "healthy"}`
 
-4. **Interactive API Documentation**:
-   - OpenAPI documentation is served at `http://localhost:8000/docs`.
+4. **Interactive API Documentation & Testing**:
+   - OpenAPI documentation is served at `http://localhost:8000/docs`. You can register/login and test authorization directly through the Swagger UI using the "Authorize" button.
 
 5. **Alembic Database Migrations**:
    If modifying base models, run migrations via:
@@ -109,4 +134,4 @@ Run tests inside the active running backend Docker container:
 ```bash
 docker compose exec backend pytest
 ```
-*Tests verify backend application startup, health-check responsiveness, and database engine connectivity.*
+*Tests verify backend application startup, health-check responsiveness, database engine connectivity, and authentication & authorization pathways.*
