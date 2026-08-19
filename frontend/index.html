@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road Safety Platform - API Test Client</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <main class="container">
+        <header>
+            <div class="logo">
+                <span class="pulse-icon"></span>
+                <h1>Road Infrastructure Platform</h1>
+            </div>
+            <p class="subtitle">API Diagnostic & Monitoring Console</p>
+        </header>
+
+        <section class="console-box">
+            <div class="console-header">
+                <div class="win-buttons">
+                    <span class="btn-dot close"></span>
+                    <span class="btn-dot minimize"></span>
+                    <span class="btn-dot maximize"></span>
+                </div>
+                <div class="console-title">Backend API Health Checker</div>
+            </div>
+            <div class="console-body">
+                <div class="status-panel">
+                    <div class="status-indicator">
+                        <span class="status-dot unknown" id="health-dot"></span>
+                        <span class="status-text" id="health-status">Checking API connectivity...</span>
+                    </div>
+                    <button class="btn btn-primary" id="btn-check">Run Diagnostic</button>
+                </div>
+                <div class="console-logs" id="logs">
+                    <div class="log-line system">[SYSTEM] Console initialized. Ready to test backend.</div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>AI-Powered Crowdsourced Road Infrastructure Monitoring & Management Platform — Phase 1</p>
+        </footer>
+    </main>
+    <script src="js/app.js"></script>
+</body>
+</html>
