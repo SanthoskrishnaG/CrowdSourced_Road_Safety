@@ -63,6 +63,7 @@ class RoadReport(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     address = Column(String(255), nullable=True)
+    location_accuracy = Column(Float, nullable=True)
     status = Column(
         Enum(ReportStatus),
         default=ReportStatus.REPORTED,
@@ -82,3 +83,10 @@ class RoadReport(Base):
 
     # Relationships
     reporter = relationship("User", back_populates="reports")
+    images = relationship(
+        "ReportImage",
+        back_populates="report",
+        cascade="all, delete-orphan",
+        order_by="ReportImage.uploaded_at"
+    )
+
