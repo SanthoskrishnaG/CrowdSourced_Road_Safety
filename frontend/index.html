@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Road Problem Public Map | AI-Powered Road Safety</title>
+    <title>Authority Command Center & Analytics | Road Safety Intelligence Platform</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -16,130 +16,656 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="map-view-active">
+<body class="theme-dark">
     <div class="glow-bg"></div>
 
     <!-- Top Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-brand">
-            <span class="pulse-icon"></span>
-            <span class="brand-title">Road Infrastructure Map</span>
-            <span class="version-tag">Phase 7 (AI Vision)</span>
-        </div>
-        <div class="nav-actions">
-            <div class="stats-badge">
-                <span class="stats-dot"></span>
-                <span id="active-count">0</span> Issues Tracked
+    <header class="navbar">
+        <div class="nav-left">
+            <button class="btn-icon mobile-menu-toggle" id="btn-mobile-menu" aria-label="Toggle Sidebar">
+                <span>☰</span>
+            </button>
+            <div class="nav-brand">
+                <span class="pulse-icon"></span>
+                <span class="brand-title">RoadOps Enterprise</span>
+                <span class="version-tag">Phase 9 Authority Suite</span>
             </div>
-            <button class="btn btn-outline btn-sm" id="btn-toggle-diagnostics">AI & API Console</button>
         </div>
-    </nav>
 
-    <!-- Main Workspace -->
-    <main class="main-layout">
-        <!-- Sidebar Controls & Filters -->
-        <aside class="sidebar-panel">
-            <div class="panel-card filters-card">
-                <div class="card-header">
-                    <h3>Filter Issues</h3>
-                    <button class="btn-link" id="btn-reset-filters">Reset</button>
-                </div>
-                
-                <div class="filter-group">
-                    <label for="filter-category">Problem Category</label>
-                    <select id="filter-category" class="form-select">
-                        <option value="">All Categories</option>
-                        <option value="POTHOLE">🕳️ Pothole</option>
-                        <option value="ROAD_DAMAGE">⚠️ Road Damage</option>
-                        <option value="BROKEN_STREETLIGHT">💡 Broken Streetlight</option>
-                        <option value="BLOCKED_ROAD">🚧 Blocked Road</option>
-                        <option value="GARBAGE">🗑️ Garbage / Debris</option>
-                        <option value="FLOODING">🌊 Flooding</option>
-                        <option value="DAMAGED_SIGN">🛑 Damaged Sign</option>
-                        <option value="OBSTRUCTION">🌲 Obstruction</option>
-                        <option value="OTHER">📌 Other</option>
-                    </select>
-                </div>
+        <div class="nav-center">
+            <div class="system-time-badge" id="system-clock">--:--:-- UTC</div>
+            <div class="auth-status-chip" id="auth-status-chip">
+                <span class="chip-dot status-offline" id="auth-dot"></span>
+                <span id="auth-role-label">Public / Citizen</span>
+            </div>
+        </div>
 
-                <div class="filter-group">
-                    <label for="filter-severity">Severity Level</label>
-                    <select id="filter-severity" class="form-select">
-                        <option value="">All Severities</option>
-                        <option value="CRITICAL">🔴 Critical Hazard</option>
-                        <option value="HIGH">🟠 High Severity</option>
-                        <option value="MEDIUM">🟡 Medium Severity</option>
-                        <option value="LOW">🟢 Low Severity</option>
-                    </select>
-                </div>
+        <div class="nav-right">
+            <button class="btn btn-sm btn-outline" id="btn-quick-authority-login">
+                ⚡ Quick Authority Login
+            </button>
+            <button class="btn btn-sm btn-outline" id="btn-token-config">
+                🔑 Token
+            </button>
+            <button class="btn btn-sm btn-primary" id="btn-refresh-all">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-sm btn-outline" id="btn-toggle-diagnostics">
+                🤖 AI & Diagnostics
+            </button>
+        </div>
+    </header>
 
-                <div class="filter-group">
-                    <label for="filter-status">Resolution Status</label>
-                    <select id="filter-status" class="form-select">
-                        <option value="">All Statuses</option>
-                        <option value="REPORTED">Reported</option>
-                        <option value="VERIFIED">Verified</option>
-                        <option value="ASSIGNED">Assigned</option>
-                        <option value="IN_PROGRESS">In Progress</option>
-                        <option value="FIXED">Fixed</option>
-                        <option value="CLOSED">Closed</option>
-                    </select>
-                </div>
-
-                <button class="btn btn-primary w-100" id="btn-apply-filters">
-                    Refresh Map Data
+    <!-- Main Application Shell -->
+    <div class="app-shell">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <nav class="sidebar-nav">
+                <button class="nav-tab active" data-view="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Executive Overview</span>
                 </button>
-            </div>
+                <button class="nav-tab" data-view="issues">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-label">Issue Command Center</span>
+                </button>
+                <button class="nav-tab" data-view="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-label">Analytics & Trends</span>
+                </button>
+                <button class="nav-tab" data-view="heatmap">
+                    <span class="nav-icon">🔥</span>
+                    <span class="nav-label">Geographic Heatmap</span>
+                </button>
+                <button class="nav-tab" data-view="public-map">
+                    <span class="nav-icon">🗺️</span>
+                    <span class="nav-label">Public Map View</span>
+                </button>
+            </nav>
 
-            <!-- Severity Legend -->
-            <div class="panel-card legend-card">
-                <h4>Severity Legend</h4>
-                <div class="legend-list">
-                    <div class="legend-item"><span class="legend-color critical"></span> Critical Risk</div>
-                    <div class="legend-item"><span class="legend-color high"></span> High Severity</div>
-                    <div class="legend-item"><span class="legend-color medium"></span> Medium Severity</div>
-                    <div class="legend-item"><span class="legend-color low"></span> Minor / Low</div>
-                </div>
-            </div>
-
-            <!-- Live Metrics Box -->
-            <div class="panel-card metrics-card">
-                <div class="metric-row">
-                    <div class="metric-col">
-                        <div class="metric-val" id="metric-critical">0</div>
-                        <div class="metric-lbl">Critical</div>
+            <div class="sidebar-footer">
+                <div class="status-summary-mini">
+                    <div class="summary-item">
+                        <span class="summary-label">Active Hazards:</span>
+                        <span class="summary-value" id="side-active-count">0</span>
                     </div>
-                    <div class="metric-col">
-                        <div class="metric-val" id="metric-in-progress">0</div>
-                        <div class="metric-lbl">In Action</div>
-                    </div>
-                    <div class="metric-col">
-                        <div class="metric-val" id="metric-fixed">0</div>
-                        <div class="metric-lbl">Resolved</div>
+                    <div class="summary-item">
+                        <span class="summary-label">Critical:</span>
+                        <span class="summary-value text-critical" id="side-critical-count">0</span>
                     </div>
                 </div>
             </div>
         </aside>
 
-        <!-- Map Container -->
-        <section class="map-wrapper">
-            <div id="map" class="map-canvas"></div>
-            
-            <!-- Quick View / Inspector Drawer -->
-            <div class="report-drawer" id="report-drawer">
-                <div class="drawer-header">
-                    <div class="drawer-title" id="drawer-category">Problem Details</div>
-                    <button class="drawer-close" id="drawer-close-btn">&times;</button>
+        <!-- Main Workspace Area -->
+        <main class="app-content" id="main-container">
+
+            <!-- ================= VIEW 1: EXECUTIVE DASHBOARD ================= -->
+            <section class="view-panel active" id="view-dashboard">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>Authority Executive Overview</h2>
+                        <p class="subtitle">Real-time infrastructure intelligence, hazard priorities, and resolution velocity.</p>
+                    </div>
+                    <div class="banner-actions">
+                        <span class="last-sync-tag" id="last-sync-time">Synced just now</span>
+                    </div>
                 </div>
-                <div class="drawer-body" id="drawer-body">
-                    <div class="drawer-empty-state">Click any marker on the map to inspect its details and evidence.</div>
+
+                <!-- KPI Metric Ribbon -->
+                <div class="kpi-grid">
+                    <div class="kpi-card" id="card-total-reports">
+                        <div class="kpi-icon-wrap bg-blue">📢</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Total Reports</span>
+                            <h3 class="kpi-value" id="kpi-total-reports">0</h3>
+                            <span class="kpi-sub">Citizen submissions</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-active-issues">
+                        <div class="kpi-icon-wrap bg-indigo">🚧</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Active Issues</span>
+                            <h3 class="kpi-value" id="kpi-active-issues">0</h3>
+                            <span class="kpi-sub">In workflow</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card kpi-highlight-critical" id="card-critical-issues">
+                        <div class="kpi-icon-wrap bg-critical">⚠️</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Critical Hazards</span>
+                            <h3 class="kpi-value text-critical" id="kpi-critical-issues">0</h3>
+                            <span class="kpi-sub">Immediate action required</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-high-priority">
+                        <div class="kpi-icon-wrap bg-high">🔴</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">High Priority</span>
+                            <h3 class="kpi-value" id="kpi-high-priority">0</h3>
+                            <span class="kpi-sub">Escalated score</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-awaiting-verification">
+                        <div class="kpi-icon-wrap bg-yellow">⏳</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Awaiting Verification</span>
+                            <h3 class="kpi-value" id="kpi-awaiting-verification">0</h3>
+                            <span class="kpi-sub">New reports</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-in-progress">
+                        <div class="kpi-icon-wrap bg-orange">🛠️</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">In Progress / Assigned</span>
+                            <h3 class="kpi-value" id="kpi-in-progress">0</h3>
+                            <span class="kpi-sub">Crews active</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-fixed-issues">
+                        <div class="kpi-icon-wrap bg-green">✅</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Fixed / Repaired</span>
+                            <h3 class="kpi-value text-green" id="kpi-fixed-issues">0</h3>
+                            <span class="kpi-sub">Awaiting closure audit</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-closed-issues">
+                        <div class="kpi-icon-wrap bg-slate">🔒</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Closed Issues</span>
+                            <h3 class="kpi-value" id="kpi-closed-issues">0</h3>
+                            <span class="kpi-sub">Fully resolved</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Resolution & Fast Actions Row -->
+                <div class="dashboard-metrics-row">
+                    <div class="glass-card flex-2">
+                        <div class="card-head">
+                            <h3>⚡ Resolution Velocity Benchmarks</h3>
+                            <span class="badge badge-info">Pandas Engine</span>
+                        </div>
+                        <div class="resolution-kpi-split">
+                            <div class="res-block">
+                                <span class="res-num" id="kpi-res-fixed-hours">--</span>
+                                <span class="res-unit">hrs</span>
+                                <span class="res-label">Avg. Reported → Fixed</span>
+                            </div>
+                            <div class="res-divider"></div>
+                            <div class="res-block">
+                                <span class="res-num" id="kpi-res-closed-hours">--</span>
+                                <span class="res-unit">hrs</span>
+                                <span class="res-label">Avg. Reported → Closed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card flex-3">
+                        <div class="card-head">
+                            <h3>🚨 Urgent Attention Stream</h3>
+                            <button class="btn-link" id="btn-view-all-issues">View All Issues →</button>
+                        </div>
+                        <div class="urgent-issues-list" id="urgent-issues-list">
+                            <div class="loading-state">Loading urgent hazards...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Mini Charts Row -->
+                <div class="dashboard-charts-grid">
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>Category Breakdown</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="dashCategoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>Severity Distribution</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="dashSeverityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>Status Funnel</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="dashStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 2: ISSUE MANAGEMENT COMMAND CENTER ================= -->
+            <section class="view-panel" id="view-issues">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>Issue Management Command Center</h2>
+                        <p class="subtitle">Search, filter, inspect, assign departments, and track issue resolution lifecycle.</p>
+                    </div>
+                    <div class="banner-actions">
+                        <button class="btn btn-primary btn-sm" id="btn-export-issues">📥 Export CSV</button>
+                    </div>
+                </div>
+
+                <!-- Filter & Search Toolbar -->
+                <div class="filter-toolbar glass-card">
+                    <div class="search-input-wrap">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="issue-search-input" class="form-control" placeholder="Search by title, description, or street address...">
+                    </div>
+
+                    <div class="filter-controls-row">
+                        <select id="filter-issue-category" class="form-select">
+                            <option value="">All Categories</option>
+                            <option value="POTHOLE">🕳️ Pothole</option>
+                            <option value="ROAD_DAMAGE">⚠️ Road Damage</option>
+                            <option value="BROKEN_STREETLIGHT">💡 Broken Streetlight</option>
+                            <option value="BLOCKED_ROAD">🚧 Blocked Road</option>
+                            <option value="GARBAGE">🗑️ Garbage / Debris</option>
+                            <option value="FLOODING">🌊 Flooding</option>
+                            <option value="DAMAGED_SIGN">🛑 Damaged Sign</option>
+                            <option value="OBSTRUCTION">🌲 Obstruction</option>
+                            <option value="OTHER">📌 Other</option>
+                        </select>
+
+                        <select id="filter-issue-severity" class="form-select">
+                            <option value="">All Severities</option>
+                            <option value="CRITICAL">🔴 Critical</option>
+                            <option value="HIGH">🟠 High</option>
+                            <option value="MEDIUM">🟡 Medium</option>
+                            <option value="LOW">🟢 Low</option>
+                        </select>
+
+                        <select id="filter-issue-status" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="REPORTED">Reported</option>
+                            <option value="VERIFIED">Verified</option>
+                            <option value="ASSIGNED">Assigned</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="FIXED">Fixed</option>
+                            <option value="CLOSED">Closed</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+
+                        <select id="filter-issue-priority" class="form-select">
+                            <option value="">All Priorities</option>
+                            <option value="CRITICAL">Critical Priority</option>
+                            <option value="HIGH">High Priority</option>
+                            <option value="MEDIUM">Medium Priority</option>
+                            <option value="LOW">Low Priority</option>
+                        </select>
+
+                        <select id="filter-issue-dept" class="form-select">
+                            <option value="">All Departments</option>
+                            <option value="ROAD_DEPARTMENT">Roads & Highways</option>
+                            <option value="ELECTRICAL_DEPARTMENT">Electrical & Lighting</option>
+                            <option value="SANITATION_DEPARTMENT">Sanitation & Waste</option>
+                            <option value="TRAFFIC_DEPARTMENT">Traffic Management</option>
+                            <option value="DRAINAGE_DEPARTMENT">Storm Drainage</option>
+                            <option value="GENERAL_WORKS">General Public Works</option>
+                        </select>
+
+                        <button class="btn btn-secondary btn-sm" id="btn-clear-issue-filters">Reset Filters</button>
+                        <button class="btn btn-primary btn-sm" id="btn-apply-issue-search">Apply</button>
+                    </div>
+                </div>
+
+                <!-- Issues Data Table -->
+                <div class="table-container glass-card">
+                    <table class="data-table" id="issues-table">
+                        <thead>
+                            <tr>
+                                <th>Priority</th>
+                                <th>Category & Title</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Assigned Dept</th>
+                                <th>Reports</th>
+                                <th>Location</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="issues-table-body">
+                            <tr>
+                                <td colspan="9" class="text-center py-4 text-muted">Loading issues from server...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Pagination Bar -->
+                    <div class="pagination-bar">
+                        <div class="pagination-info" id="pagination-info">Showing 0 of 0 issues</div>
+                        <div class="pagination-buttons">
+                            <button class="btn btn-sm btn-outline" id="btn-prev-page" disabled>Previous</button>
+                            <span class="page-indicator" id="current-page-num">1</span>
+                            <button class="btn btn-sm btn-outline" id="btn-next-page" disabled>Next</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 3: ANALYTICS & TRENDS HUB ================= -->
+            <section class="view-panel" id="view-analytics">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>Analytics & Predictive Trends</h2>
+                        <p class="subtitle">Multi-dimensional aggregation, time-series velocity, and spatial cluster metrics.</p>
+                    </div>
+                    <div class="trend-controls">
+                        <div class="btn-group" id="trend-interval-group">
+                            <button class="btn-chip active" data-interval="day">Day</button>
+                            <button class="btn-chip" data-interval="week">Week</button>
+                            <button class="btn-chip" data-interval="month">Month</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Time-Series Trends Chart -->
+                <div class="glass-card mb-4">
+                    <div class="card-head">
+                        <h3>📈 Issue Occurrence & Resolution Trends</h3>
+                        <span class="badge badge-info" id="trend-interval-badge">Daily Aggregation</span>
+                    </div>
+                    <div class="chart-canvas-wrap large">
+                        <canvas id="trendTimeChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="charts-2col-grid">
+                    <!-- Category Analytics -->
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>Problem Categories Distribution</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="categoryDetailChart"></canvas>
+                        </div>
+                        <div class="breakdown-table-wrap" id="category-breakdown-list"></div>
+                    </div>
+
+                    <!-- Severity & Resolution Breakdown -->
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>Severity & Risk Profiling</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="severityDetailChart"></canvas>
+                        </div>
+                        <div class="breakdown-table-wrap" id="severity-breakdown-list"></div>
+                    </div>
+                </div>
+
+                <!-- Hotspots & Density Clusters -->
+                <div class="glass-card mt-4">
+                    <div class="card-head">
+                        <h3>📍 Top Geographic Problem Hotspots & Clusters</h3>
+                        <span class="badge badge-info">Spatial Density Grid</span>
+                    </div>
+                    <div class="hotspots-grid" id="hotspots-container">
+                        <div class="loading-state">Calculating spatial density...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 4: GEOGRAPHIC HEATMAP ================= -->
+            <section class="view-panel" id="view-heatmap">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>Geographic Problem Density Heatmap</h2>
+                        <p class="subtitle">High-resolution Leaflet heatmap displaying spatial hazard concentrations.</p>
+                    </div>
+                    <div class="heatmap-controls-bar">
+                        <select id="heatmap-filter-category" class="form-select form-select-sm">
+                            <option value="">All Categories</option>
+                            <option value="POTHOLE">Potholes</option>
+                            <option value="ROAD_DAMAGE">Road Damage</option>
+                            <option value="BROKEN_STREETLIGHT">Streetlights</option>
+                            <option value="FLOODING">Flooding</option>
+                            <option value="GARBAGE">Garbage</option>
+                        </select>
+                        <select id="heatmap-filter-severity" class="form-select form-select-sm">
+                            <option value="">All Severities</option>
+                            <option value="CRITICAL">Critical Only</option>
+                            <option value="HIGH">High & Critical</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" id="btn-refresh-heatmap">Update Heatmap</button>
+                    </div>
+                </div>
+
+                <div class="heatmap-map-container">
+                    <div id="heatmap-canvas" class="heatmap-canvas"></div>
+                    
+                    <!-- Heatmap Legend Floating Overlay -->
+                    <div class="heatmap-legend-card">
+                        <h4>Hazard Density</h4>
+                        <div class="heatmap-gradient-bar"></div>
+                        <div class="heatmap-gradient-labels">
+                            <span>Low Density</span>
+                            <span>Medium</span>
+                            <span>High Hazard</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 5: PUBLIC CITIZEN MAP (Legacy Phase 7/8) ================= -->
+            <section class="view-panel" id="view-public-map">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>Public Citizen Map & Live Marker Clusters</h2>
+                        <p class="subtitle">Explore citizen-reported road safety alerts and inspect localized evidence.</p>
+                    </div>
+                    <div class="public-map-stats">
+                        <span class="stats-badge"><span id="public-active-count">0</span> Hazards Tracked</span>
+                    </div>
+                </div>
+
+                <div class="map-wrapper">
+                    <div id="map" class="map-canvas"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ================= ISSUE INSPECTION & MANAGEMENT DRAWER / MODAL ================= -->
+    <div class="modal-backdrop" id="issue-detail-modal">
+        <div class="modal-content modal-xl drawer-mode" id="issue-drawer-content">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="badge" id="modal-category-badge">POTHOLE</span>
+                    <h3 id="modal-issue-title">Issue Title</h3>
+                </div>
+                <button class="btn-close" id="btn-close-issue-modal">&times;</button>
+            </div>
+
+            <div class="modal-body-scroll">
+                <div class="issue-modal-grid">
+                    <!-- Left: Metadata & Priority Score Breakdown -->
+                    <div class="modal-left-col">
+                        <!-- Key Stats Cards -->
+                        <div class="modal-meta-cards">
+                            <div class="meta-box">
+                                <span class="meta-lbl">Status</span>
+                                <span class="meta-val status-badge-pill" id="modal-status-badge">REPORTED</span>
+                            </div>
+                            <div class="meta-box">
+                                <span class="meta-lbl">Severity</span>
+                                <span class="meta-val" id="modal-severity-badge">HIGH</span>
+                            </div>
+                            <div class="meta-box">
+                                <span class="meta-lbl">Priority Score</span>
+                                <span class="meta-val text-primary-glow" id="modal-priority-score">0.0 / 100</span>
+                            </div>
+                            <div class="meta-box">
+                                <span class="meta-lbl">Department</span>
+                                <span class="meta-val" id="modal-department-badge">Unassigned</span>
+                            </div>
+                        </div>
+
+                        <!-- Description & Location -->
+                        <div class="detail-section">
+                            <h4>Description & Address</h4>
+                            <p class="issue-desc-text" id="modal-issue-desc">--</p>
+                            <div class="address-chip">
+                                <span>📍</span> <span id="modal-issue-address">--</span>
+                            </div>
+                            <div class="coords-chip">
+                                <span>GPS:</span> <span id="modal-issue-coords">--</span>
+                            </div>
+                        </div>
+
+                        <!-- Multi-Factor Priority Breakdown -->
+                        <div class="detail-section">
+                            <h4>Priority Score Breakdown</h4>
+                            <div class="priority-breakdown-bars" id="modal-priority-bars">
+                                <!-- Dynamic Breakdown Bars -->
+                            </div>
+                        </div>
+
+                        <!-- Supporting Citizen Reports -->
+                        <div class="detail-section">
+                            <h4>Supporting Citizen Reports (<span id="modal-report-count">0</span>)</h4>
+                            <div class="contributing-reports-list" id="modal-reports-list"></div>
+                        </div>
+
+                        <!-- Photo Evidence Gallery -->
+                        <div class="detail-section">
+                            <h4>Photo Evidence Gallery</h4>
+                            <div class="image-gallery-grid" id="modal-photos-gallery"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Workflow Actions & Audit Timeline -->
+                    <div class="modal-right-col">
+                        <!-- Authority Action Forms -->
+                        <div class="workflow-action-card">
+                            <div class="action-card-header">
+                                <h4>Authority Operations</h4>
+                            </div>
+
+                            <!-- 1. Verify Issue -->
+                            <div class="action-accordion" id="action-verify-block">
+                                <div class="accordion-head">
+                                    <span>✔️ Step 1: Verify Issue</span>
+                                </div>
+                                <div class="accordion-body">
+                                    <select id="verify-dept-select" class="form-select form-select-sm mb-2">
+                                        <option value="">Select Department (Optional)</option>
+                                        <option value="ROAD_DEPARTMENT">Roads & Highways</option>
+                                        <option value="ELECTRICAL_DEPARTMENT">Electrical & Lighting</option>
+                                        <option value="SANITATION_DEPARTMENT">Sanitation & Waste</option>
+                                        <option value="TRAFFIC_DEPARTMENT">Traffic Management</option>
+                                        <option value="DRAINAGE_DEPARTMENT">Storm Drainage</option>
+                                        <option value="GENERAL_WORKS">General Public Works</option>
+                                    </select>
+                                    <textarea id="verify-notes" class="form-control form-control-sm mb-2" placeholder="Field verification inspection remarks..."></textarea>
+                                    <button class="btn btn-primary btn-sm w-100" id="btn-submit-verify">Confirm Verification</button>
+                                </div>
+                            </div>
+
+                            <!-- 2. Assign Department -->
+                            <div class="action-accordion" id="action-assign-block">
+                                <div class="accordion-head">
+                                    <span>👷 Step 2: Assign Department</span>
+                                </div>
+                                <div class="accordion-body">
+                                    <select id="assign-dept-select" class="form-select form-select-sm mb-2">
+                                        <option value="ROAD_DEPARTMENT">Roads & Highways Department</option>
+                                        <option value="ELECTRICAL_DEPARTMENT">Electrical & Lighting Department</option>
+                                        <option value="SANITATION_DEPARTMENT">Sanitation & Waste Department</option>
+                                        <option value="TRAFFIC_DEPARTMENT">Traffic Management Department</option>
+                                        <option value="DRAINAGE_DEPARTMENT">Storm Drainage Department</option>
+                                        <option value="GENERAL_WORKS">General Public Works Department</option>
+                                    </select>
+                                    <textarea id="assign-notes" class="form-control form-control-sm mb-2" placeholder="Work instructions or crew assignment notes..."></textarea>
+                                    <button class="btn btn-warning btn-sm w-100" id="btn-submit-assign">Dispatch Assignment</button>
+                                </div>
+                            </div>
+
+                            <!-- 3. Status Transition -->
+                            <div class="action-accordion" id="action-status-block">
+                                <div class="accordion-head">
+                                    <span>🔄 Step 3: Update Resolution Status</span>
+                                </div>
+                                <div class="accordion-body">
+                                    <select id="update-status-select" class="form-select form-select-sm mb-2">
+                                        <option value="IN_PROGRESS">IN_PROGRESS (Work Commenced)</option>
+                                        <option value="FIXED">FIXED (Repair Complete)</option>
+                                        <option value="CLOSED">CLOSED (Audited & Closed)</option>
+                                        <option value="REJECTED">REJECTED (Invalid / Duplicate)</option>
+                                    </select>
+                                    <textarea id="update-status-comment" class="form-control form-control-sm mb-2" placeholder="Status change reason / summary..."></textarea>
+                                    <button class="btn btn-success btn-sm w-100" id="btn-submit-status-update">Apply Status Change</button>
+                                </div>
+                            </div>
+
+                            <!-- 4. Add Progress Comment -->
+                            <div class="action-accordion">
+                                <div class="accordion-head">
+                                    <span>💬 Add Internal Audit Comment</span>
+                                </div>
+                                <div class="accordion-body">
+                                    <textarea id="add-comment-input" class="form-control form-control-sm mb-2" placeholder="Write internal audit note..."></textarea>
+                                    <button class="btn btn-secondary btn-sm w-100" id="btn-submit-comment">Post Comment</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status History / Timeline Audit Log -->
+                        <div class="audit-timeline-card">
+                            <h4>Status & Audit Timeline</h4>
+                            <div class="timeline-container" id="modal-status-timeline">
+                                <!-- Dynamic Timeline Items -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
-    <!-- Modal Diagnostic Console (Phase 1 legacy preserved) -->
+    <!-- ================= TOKEN / AUTH MODAL ================= -->
+    <div class="modal-backdrop" id="token-modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3>JWT Authority Token</h3>
+                <button class="btn-close" id="btn-close-token-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-sm text-secondary mb-3">Paste a JWT Bearer token with AUTHORITY or ADMIN role, or click Quick Authority Login.</p>
+                <div class="form-group mb-3">
+                    <label for="jwt-token-input">Bearer Token</label>
+                    <textarea id="jwt-token-input" class="form-control text-xs font-mono" rows="4" placeholder="eyJhbGciOi..."></textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm flex-1" id="btn-save-token">Save Token</button>
+                    <button class="btn btn-secondary btn-sm flex-1" id="btn-clear-token">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= AI DIAGNOSTIC MODAL (Preserved) ================= -->
     <div class="modal-backdrop" id="diagnostic-modal">
         <div class="console-box modal-content">
             <div class="console-header">
@@ -148,7 +674,7 @@
                     <span class="btn-dot minimize"></span>
                     <span class="btn-dot maximize"></span>
                 </div>
-                <div class="console-title">Backend API Diagnostics</div>
+                <div class="console-title">Backend API Diagnostics & Vision Classifier</div>
             </div>
             <div class="console-body">
                 <div class="status-panel">
@@ -159,24 +685,23 @@
                     <button class="btn btn-primary" id="btn-check">Run Diagnostic</button>
                 </div>
 
-                <!-- AI Vision Model Live Tester -->
-                <div class="ai-classifier-test-box" style="margin: 1.5rem 0; padding: 1.2rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
-                    <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <div class="ai-classifier-test-box">
+                    <div class="ai-box-title">
                         <span>🤖</span> AI Image Classifier (road-vision-v1.0)
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.8rem;">
+                    <p class="text-sm text-secondary mb-2">
                         Test real ML computer vision classification on any road hazard photo (JPG/PNG).
                     </p>
-                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.8rem;">
-                        <input type="file" id="ai-demo-file" accept="image/*" class="form-control" style="font-size: 0.8rem; padding: 0.4rem;">
+                    <div class="d-flex gap-2 align-center mb-2">
+                        <input type="file" id="ai-demo-file" accept="image/*" class="form-control text-sm">
                         <button class="btn btn-primary btn-sm" id="btn-classify-demo">Classify</button>
                     </div>
-                    <div id="ai-classification-result" style="display: none; padding: 0.8rem; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.85rem;">
-                        <div id="ai-pred-badge" style="font-weight: bold; margin-bottom: 0.4rem;"></div>
-                        <div id="ai-confidence-bar-container" style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 0.4rem;">
-                            <div id="ai-confidence-bar" style="background: var(--primary); height: 100%; width: 0%;"></div>
+                    <div id="ai-classification-result" class="ai-res-box" style="display: none;">
+                        <div id="ai-pred-badge" class="font-bold mb-1"></div>
+                        <div class="ai-bar-wrap">
+                            <div id="ai-confidence-bar" class="ai-bar"></div>
                         </div>
-                        <div id="ai-prob-breakdown" style="font-size: 0.75rem; color: var(--text-secondary); font-family: monospace;"></div>
+                        <div id="ai-prob-breakdown" class="ai-prob-text"></div>
                     </div>
                 </div>
 
@@ -187,10 +712,13 @@
         </div>
     </div>
 
-    <!-- Leaflet JS -->
+    <!-- External Libraries: Leaflet, MarkerCluster, Leaflet Heat, Chart.js -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <!-- Leaflet MarkerCluster JS -->
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <!-- Application Logic -->
     <script src="js/app.js"></script>
 </body>
 </html>

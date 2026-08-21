@@ -135,9 +135,33 @@ The application reads settings using Pydantic Settings. Duplicate `.env.example`
 
 ---
 
+## Authority Dashboard & Analytics (Phase 9)
+
+Phase 9 introduces an enterprise-grade Authority Operations Center and multi-dimensional analytics engine designed for municipal officials, road maintenance departments, and city administrators.
+
+### Key Capabilities
+- **Executive KPI Monitoring**: Real-time counters for Total Reports, Active Issues, Critical Hazards, High-Priority Issues, Awaiting Verification, In Progress, Fixed, and Closed.
+- **Resolution Velocity Analytics**: Automated calculation of average turnaround duration ($T_{\text{reported} \to \text{fixed}}$ and $T_{\text{reported} \to \text{closed}}$) using Pandas time-delta modeling.
+- **Geographic Density & Hotspots**: Spatial grid binning (~1.1km) identifying recurring high-risk hazard clusters.
+- **Interactive Heatmap**: Leaflet-compatible weighted density map (`leaflet-heat`) visualizing spatial problem concentrations.
+- **Time-Series Trends**: Aggregation of hazard creation and resolution rates over Day, Week, and Month intervals.
+- **Issue Command Center**: Search by keyword (title, description, address), multi-factor filtering, priority breakdown inspection, department assignment, and lifecycle state management.
+
+### Analytics API Endpoints (Role Protected: `AUTHORITY`, `ADMIN`)
+- `GET /api/v1/analytics/summary`: Summary of all dashboard KPI metrics and average resolution hours.
+- `GET /api/v1/analytics/categories`: Breakdown of issues across categories with percentage distributions.
+- `GET /api/v1/analytics/severity`: Distribution of hazards across severity levels (Critical, High, Medium, Low).
+- `GET /api/v1/analytics/status`: Complete lifecycle status distribution.
+- `GET /api/v1/analytics/resolution`: Resolution metrics and category/severity turnaround times.
+- `GET /api/v1/analytics/geographic`: Spatial density hotspots and cluster coordinates.
+- `GET /api/v1/analytics/trends?interval={day|week|month}`: Time-series incident and resolution rates.
+- `GET /api/v1/analytics/heatmap`: Intensity-weighted geospatial points `[lat, lng, intensity]`.
+
+---
+
 ## Running Tests
-Run tests inside the active running backend Docker container:
+Run automated pytest test suites:
 ```bash
-docker compose exec backend pytest
+venv\Scripts\pytest backend\tests -v
 ```
-*Tests verify application startup, database connectivity, authentication, reports lifecycle, image processing pipelines, geospatial calculations, public map feeds, and automatic duplicate detection workflows.*
+*Tests verify API health, authentication & RBAC, image processing, AI vision inference, duplicate detection, priority scoring, workflow state transitions, and all Phase 9 analytics endpoints.*
