@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Enum, ForeignKey, DateTime, Text
+from sqlalchemy import Column, String, Float, Enum, ForeignKey, DateTime, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -38,6 +38,10 @@ class ReportStatus(str, enum.Enum):
 
 class RoadReport(Base):
     __tablename__ = "reports"
+    __table_args__ = (
+        Index("idx_reports_lat_long", "latitude", "longitude"),
+        Index("idx_reports_status_created", "status", "created_at"),
+    )
 
     id = Column(
         UUID(as_uuid=True),
@@ -48,17 +52,20 @@ class RoadReport(Base):
     reporter_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
     category = Column(
         Enum(ReportCategory),
-        nullable=False
+        nullable=False,
+        index=True
     )
     title = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
     severity = Column(
         Enum(ReportSeverity),
-        nullable=False
+        nullable=False,
+        index=True
     )
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
@@ -67,12 +74,14 @@ class RoadReport(Base):
     status = Column(
         Enum(ReportStatus),
         default=ReportStatus.REPORTED,
-        nullable=False
+        nullable=False,
+        index=True
     )
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
+        index=True
     )
     updated_at = Column(
         DateTime(timezone=True),

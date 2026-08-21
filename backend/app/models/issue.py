@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Integer, Enum, DateTime, Text
+from sqlalchemy import Column, String, Float, Integer, Enum, DateTime, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -34,6 +34,10 @@ class TrafficDensity(str, enum.Enum):
 
 class Issue(Base):
     __tablename__ = "issues"
+    __table_args__ = (
+        Index("idx_issues_lat_long", "latitude", "longitude"),
+        Index("idx_issues_status_priority", "status", "priority_level"),
+    )
 
     id = Column(
         UUID(as_uuid=True),
@@ -43,7 +47,8 @@ class Issue(Base):
     )
     category = Column(
         Enum(ReportCategory),
-        nullable=False
+        nullable=False,
+        index=True
     )
     title = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
@@ -52,18 +57,21 @@ class Issue(Base):
     address = Column(String(255), nullable=True)
     severity = Column(
         Enum(ReportSeverity),
-        nullable=False
+        nullable=False,
+        index=True
     )
     status = Column(
         Enum(ReportStatus),
         default=ReportStatus.REPORTED,
-        nullable=False
+        nullable=False,
+        index=True
     )
-    priority_score = Column(Float, default=0.0, nullable=False)
+    priority_score = Column(Float, default=0.0, nullable=False, index=True)
     priority_level = Column(
         Enum(PriorityLevel),
         default=PriorityLevel.LOW,
-        nullable=False
+        nullable=False,
+        index=True
     )
     report_count = Column(Integer, default=1, nullable=False)
 
@@ -80,13 +88,15 @@ class Issue(Base):
     )
     assigned_department = Column(
         Enum(AuthorityDepartment),
-        nullable=True
+        nullable=True,
+        index=True
     )
 
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
+        index=True
     )
     updated_at = Column(
         DateTime(timezone=True),

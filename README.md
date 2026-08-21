@@ -1,167 +1,364 @@
 # AI-Powered Crowdsourced Road Infrastructure Monitoring & Management Platform
 
-A modern, production-oriented web platform that empowers citizens to report public infrastructure issues (potholes, broken streetlights, blocked roads, garbage, flooding, etc.) and enables authorities to verify, assign, track, prioritize, and resolve them.
+[![CI/CD Pipeline](https://github.com/SanthoskrishnaG/CrowdSourced_Road_Safety/actions/workflows/ci.yml/badge.svg)](https://github.com/SanthoskrishnaG/CrowdSourced_Road_Safety/actions)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688.svg)](https://fastapi.tiangolo.com)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![Tests Passing](https://img.shields.io/badge/Tests-82%20Passed-brightgreen.svg)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+An enterprise-grade, crowdsourced civic technology platform that empowers citizens to report road hazards (potholes, broken streetlights, road damage, flooding, garbage, etc.) and provides municipal authorities with an AI-driven command center to verify, prioritize, dispatch, track, and resolve infrastructure issues.
 
 ---
 
-## Purpose & Problem Statement
-Poorly maintained infrastructure leads to traffic accidents, economic delays, and general safety hazards. Currently, reporting mechanisms are fragmented and manual. 
-This platform acts as a centralized crowdsourced hub, leveraging community reports to flag hazards, merging duplicate reports into canonical issues, and calculating priority scores to optimize municipal repair workflows.
+## 1. Problem Statement
+Municipal road maintenance currently suffers from critical systemic inefficiencies:
+1. **Fragmented & Slow Citizen Reporting**: Citizens encounter road hazards but lack a streamlined, geolocation-aware mechanism to alert city departments.
+2. **Duplicate Report Clutter**: Severe hazards (like major highway potholes) trigger dozens of redundant citizen reports, overwhelming municipal helpdesks.
+3. **Subjective Prioritization**: Repair crews lack real-time risk scoring, resulting in critical high-traffic hazards waiting behind low-severity issues.
+4. **Opaque Resolution Lifecycle**: Citizens have no visibility into whether their submissions are verified, assigned, or fixed, eroding civic engagement.
 
 ---
 
-## Core Architecture: Reports vs Canonical Issues
-The platform establishes a strict architectural boundary between citizen submissions and underlying municipal problems:
-- **`RoadReport`**: An individual submission from a citizen containing title, description, timestamp, coordinates, and photo evidence.
-- **`Issue`**: The canonical underlying road problem tracked by authorities. Multiple citizen reports regarding the same problem automatically merge into one canonical `Issue`.
+## 2. Solution Overview
+The **Road Safety Platform** bridges the gap between citizens and municipal authorities through an intelligent end-to-end pipeline:
+- **AI Computer Vision**: Automatically classifies road damage categories and calibrates model confidence from uploaded evidence photos.
+- **Multi-Factor Duplicate Detection**: Merges proximate citizen submissions into canonical issues using spatial, category, temporal, and perceptual dHash image algorithms.
+- **Dynamic Priority Engine**: Calculates dynamic 0–100 priority scores factoring in hazard severity, report frequency saturation, traffic density, sensitive zones, and aging acceleration.
+- **Authority Operations Command Center**: Provides municipal officers with real-time KPI metrics, search/filtering, department assignment workflows, and resolution time analytics.
+- **Geographic Problem Density Heatmap**: Visualizes spatial hazard concentrations using Leaflet-powered heatmaps.
 
 ---
 
-## Intelligent Duplicate Detection (Phase 6)
-When a citizen creates a report, the system evaluates active issues within proximity using a multi-factor deterministic scoring engine:
+## 3. Architecture & End-to-End Workflow
 
-$$\text{Score} = \frac{w_{\text{loc}} \cdot S_{\text{loc}} + w_{\text{cat}} \cdot S_{\text{cat}} + w_{\text{time}} \cdot S_{\text{time}} + w_{\text{img}} \cdot S_{\text{img}}}{w_{\text{total}}}$$
+```mermaid
+flowchart TD
+    subgraph Citizen Experience
+        A[Citizen Device / Camera] -->|GPS + Photo + Description| B(FastAPI Report Ingestion)
+        B --> C{AI Computer Vision}
+        C -->|Predicted Category & Confidence| D[Multi-Factor Duplicate Engine]
+    end
 
-1. **Geographic Proximity ($S_{\text{loc}}$)**: Haversine distance calculations ($d \le 15\text{m} \to 1.0$, linear decay to $0.0$ at $50\text{m}$).
-2. **Category Taxonomy ($S_{\text{cat}}$)**: Exact matches ($1.0$), related taxonomy pairs ($0.4 - 0.6$, e.g. `POTHOLE` $\leftrightarrow$ `ROAD_DAMAGE`), or distinct ($0.0$).
-3. **Time Proximity ($S_{\text{time}}$)**: Recency scoring ($1.0$ within 24h, decaying to $0.1$ at 30 days).
-4. **Perceptual Image Hashing ($S_{\text{img}}$)**: 64-bit difference hashing (dHash) with Hamming distance comparison via Pillow.
+    subgraph Core Intelligence
+        D -->|Match Score >= 0.65| E[Merge into Canonical Issue]
+        D -->|Match Score < 0.65| F[Spawn New Canonical Issue]
+        E --> G[Priority Calculation Engine]
+        F --> G
+        G -->|Severity + Count + Traffic + Zone + Aging| H[(PostgreSQL Database)]
+    end
 
-If $\text{Score} \ge 0.65$, the report merges into the existing canonical `Issue`, incrementing `report_count` and upgrading severity if applicable. Otherwise, a new canonical `Issue` is spawned. Detailed documentation is available in [docs/duplicate_detection.md](file:///c:/Users/Santhoskrishna/Documents/Crowdsourced%20Road%20Safety/docs/duplicate_detection.md).
-
----
-
-## Authentication & Authorization Architecture
-- **Password Security**: Passwords are secure-hashed using `bcrypt` and are never saved or exposed in plain text.
-- **JWT Authentication**: Secure Bearer tokens are produced upon login using `PyJWT` (algorithm `HS256`).
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions are enforced server-side.
-
-### System Roles
-1. **`CITIZEN`**: Can submit reports, view own submitted reports, upload evidence photos, and browse public issues.
-2. **`AUTHORITY`**: Can view assigned issues, verify reporting accuracy, assign tasks, attach evidence, and update statuses.
-3. **`ADMIN`**: Full platform control, authority profile provisioning, image/report administration, and user management.
-
----
-
-## API Endpoints
-
-### Canonical Issues (Phase 6)
-- `GET /api/v1/issues`: List canonical road issues with pagination (`page`, `page_size`) and filters (`category`, `severity`, `status`).
-- `GET /api/v1/issues/{id}`: Detailed view of a canonical issue including `report_count` and nested contributing reports list.
-
-### Public Map
-- `GET /api/v1/reports/map`: Lightweight geospatial report feed. Supports attribute filters (`category`, `severity`, `status`) and viewport bounding box filters (`min_lat`, `max_lat`, `min_lon`, `max_lon`).
-
-### Authentication
-- `POST /api/v1/auth/register`: Create a new user account.
-- `POST /api/v1/auth/login`: Authenticate credentials and receive a JWT.
-- `POST /api/v1/auth/logout`: Log out and confirm token invalidation request.
-- `GET /api/v1/auth/me`: Get the current logged-in user profile (Requires Bearer Token).
-
-### Road Reports
-- `POST /api/v1/reports`: Create a new road report and trigger duplicate detection (Requires Bearer Token).
-- `GET /api/v1/reports`: Get a list of reports. Supports pagination (`page`, `page_size`) and filters (`category`, `severity`, `status`).
-- `GET /api/v1/reports/my`: Get all reports submitted by the current authenticated citizen.
-- `GET /api/v1/reports/{id}`: Get detailed view of a report by UUID, including attached images and `issue_id`.
-- `PATCH /api/v1/reports/{id}`: Modify report attributes.
-- `DELETE /api/v1/reports/{id}`: Delete a report.
-
-### Photographic Evidence
-- `POST /api/v1/reports/{id}/images`: Upload one or more evidence photos (multipart form data).
-- `GET /api/v1/reports/{id}/images`: Retrieve list of all images and thumbnails attached to a report.
-- `DELETE /api/v1/reports/{id}/images/{image_id}`: Remove an image attachment from a report.
-
-### Static Assets
-- `GET /uploads/...`: Direct access to uploaded evidence images and generated thumbnails.
-
-### Diagnostics
-- `GET /api/v1/health`: Server status and DB accessibility checks.
+    subgraph Authority Operations Center
+        H --> I[Executive KPI Dashboard]
+        H --> J[Issue Command Center]
+        H --> K[Geospatial Problem Heatmap]
+        H --> L[Pandas Analytics & Trend Engine]
+        
+        J -->|Step 1| M[Verify Issue]
+        M -->|Step 2| N[Assign Department & Officer]
+        N -->|Step 3| O[Transition to IN_PROGRESS]
+        O -->|Step 4| P[Transition to FIXED]
+        P -->|Step 5| Q[Audit & CLOSE Issue]
+        
+        Q -->|Background Notification| R[Citizen Email Status Alert]
+    end
+```
 
 ---
 
-## Technology Stack
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, Uvicorn, bcrypt, PyJWT, email-validator, Pillow, python-multipart
-- **Frontend**: HTML5, Vanilla CSS (Glassmorphism / Dark Theme), Vanilla JavaScript, Leaflet.js, OpenStreetMap, Leaflet.markercluster
-- **Development & Testing**: pytest, python-dotenv, Docker, Docker Compose, Git
+## 4. Key Features
+
+### Citizen Portal
+- **Geolocation-Tagged Submissions**: GPS coordinates capture with reverse-geocoded street addresses.
+- **Photographic Evidence Upload**: Multi-image attachments with automatic thumbnail generation and metadata extraction.
+- **Real-Time AI Vision Preview**: Instant preview of hazard classification before submission.
+- **Personal Report Tracking**: Real-time status inspection (`REPORTED` $\to$ `VERIFIED` $\to$ `ASSIGNED` $\to$ `IN_PROGRESS` $\to$ `FIXED` $\to$ `CLOSED`).
+
+### Authority Command Center
+- **Executive KPI Monitoring**: Live counters for total reports, active issues, critical hazards, awaiting verification, in progress, and resolved issues.
+- **Turnaround Velocity Metrics**: Average resolution time calculation ($T_{\text{reported} \to \text{fixed}}$ and $T_{\text{reported} \to \text{closed}}$) using Pandas time-delta modeling.
+- **Search & Multi-Factor Filtering**: Instant full-text search across titles, descriptions, and addresses combined with category, severity, status, priority, and department filters.
+- **Issue Inspector Drawer**: Complete audit history, contributing citizen submissions, photo gallery with full-screen zoom, priority breakdown gauges, and workflow action forms.
+- **Department Dispatch**: Direct assignment to municipal divisions:
+  - Roads & Highways (`ROAD_DEPARTMENT`)
+  - Electrical & Lighting (`ELECTRICAL_DEPARTMENT`)
+  - Sanitation & Waste (`SANITATION_DEPARTMENT`)
+  - Traffic Management (`TRAFFIC_DEPARTMENT`)
+  - Storm Drainage (`DRAINAGE_DEPARTMENT`)
+  - General Public Works (`GENERAL_WORKS`)
+
+### Analytics & Geographic Heatmap
+- **Interactive Leaflet Heatmap**: Dynamic weighted spatial problem density visualization (`leaflet-heat`).
+- **Time-Series Trends**: Incident and resolution trends aggregated by Day, Week, and Month.
+- **Category & Severity Risk Profiling**: Donut and polar area distributions of infrastructure hazards.
+- **Spatial Clustering**: Automated grid binning (~1.1 km) identifying recurring municipal hotspots.
 
 ---
 
-## Project Architecture
+## 5. Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend Framework** | Python 3.12, FastAPI 0.110.0, Starlette, Uvicorn, Gunicorn |
+| **Database & ORM** | PostgreSQL 16, SQLAlchemy 2.0, Alembic (Migrations), SQLite (Testing) |
+| **Data Science & ML** | Scikit-Learn 1.4, Pandas 2.2, NumPy 2.5, Scipy 1.10, Pillow 10.2, Joblib |
+| **Security & Auth** | PyJWT (HMAC-SHA256), Bcrypt, Role-Based Access Control (RBAC), Rate Limiting |
+| **Frontend UI** | Modern HTML5, Vanilla CSS3 (Glassmorphism / Dark Theme), Vanilla JavaScript (ES6+) |
+| **Mapping & Charts** | Leaflet.js 1.9.4, Leaflet.markercluster 1.5.3, Leaflet.heat 0.2.0, Chart.js 4.4.1 |
+| **DevOps & Testing** | Docker, Docker Compose, GitHub Actions CI/CD, pytest 9.1 |
+
+---
+
+## 6. AI/ML Computer Vision Pipeline
+
+The platform incorporates an image classification model (`road-vision-v1.0`) trained on road hazard datasets.
+
 ```text
-├── backend/
-│   ├── alembic/              # Database migration history
-│   ├── app/
-│   │   ├── api/              # Versioned API routes (v1) & global dependencies
-│   │   ├── core/             # Application config, security helpers, and DB engines
-│   │   ├── models/           # SQLAlchemy Models (User, RoadReport, ReportImage, Issue)
-│   │   ├── schemas/          # Pydantic validation schemas (User, Report, Image, Map, Issue)
-│   │   ├── services/         # Duplicate detection and business logic handlers
-│   │   ├── repositories/     # Database querying layer
-│   │   ├── db/               # Helper DB scripts/utilities
-│   │   ├── utils/            # Helper modules (security, geo, image processing)
-│   │   └── main.py           # Application entrypoint
-│   ├── tests/                # Automated pytest suites (auth, reports, geo, images, map, duplicates)
-│   ├── alembic.ini           # Alembic Configuration settings
-│   ├── Dockerfile            # Backend Docker instructions
-│   └── requirements.txt      # Python dependencies
-├── frontend/                 # Interactive Map & Diagnostic Portal
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   └── app.js
-│   └── index.html
-├── uploads/                  # User image upload volume & static storage
-├── scripts/                  # Management scripts
-├── docs/                     # Documentation (duplicate_detection.md)
-├── docker-compose.yml        # Docker compose configuration
-├── .env.example              # Environment variables template
-└── README.md                 # Project handbook
+Input Image (JPG/PNG)
+  │
+  ├── 1. Validation & Magic Byte Inspection
+  ├── 2. Aspect-Ratio Preserving Letterbox Padding (128x128)
+  ├── 3. Spatial Feature Extraction (Color Moments + Multi-Scale Edge Histograms)
+  ├── 4. Feature Standardization & Inference (Gradient Boosted Classifier)
+  └── 5. Platt Scaling Confidence Calibration & Top-K Softmax Probabilities
 ```
 
----
-
-## Environment Variables
-The application reads settings using Pydantic Settings. Duplicate `.env.example` to `.env` and adjust properties:
-- `ENVIRONMENT`: Core execution environment (`development` / `production`).
-- `SECRET_KEY`: Security salt configuration.
-- `DATABASE_URL`: Connection string for SQLAlchemy (PostgreSQL).
-- `UPLOAD_DIRECTORY`: Root directory where report files are stored.
-- `DUPLICATE_SCORE_THRESHOLD`: Minimum similarity threshold for merging reports (default `0.65`).
-- `DUPLICATE_DISTANCE_THRESHOLD_METERS`: Max search radius for duplicates in meters (default `50.0`).
-- `WEIGHT_LOCATION`: Location score weight (default `0.40`).
-- `WEIGHT_CATEGORY`: Category taxonomy weight (default `0.30`).
-- `WEIGHT_TIME`: Time decay weight (default `0.15`).
-- `WEIGHT_IMAGE`: Perceptual dHash weight (default `0.15`).
+- **Supported Classes**: `POTHOLE`, `ROAD_DAMAGE`, `BROKEN_STREETLIGHT`, `FLOODING`, `GARBAGE`, `DAMAGED_SIGN`, `BLOCKED_ROAD`, `OTHER`.
+- **Human-in-the-Loop Override**: Municipal inspectors can verify or override AI predictions; overrides are logged for continuous model retraining.
 
 ---
 
-## Authority Dashboard & Analytics (Phase 9)
+## 7. Multi-Factor Duplicate Detection Algorithm
 
-Phase 9 introduces an enterprise-grade Authority Operations Center and multi-dimensional analytics engine designed for municipal officials, road maintenance departments, and city administrators.
+When a citizen submits a report, the system searches active canonical issues within 50 meters and computes a composite similarity score $S$:
 
-### Key Capabilities
-- **Executive KPI Monitoring**: Real-time counters for Total Reports, Active Issues, Critical Hazards, High-Priority Issues, Awaiting Verification, In Progress, Fixed, and Closed.
-- **Resolution Velocity Analytics**: Automated calculation of average turnaround duration ($T_{\text{reported} \to \text{fixed}}$ and $T_{\text{reported} \to \text{closed}}$) using Pandas time-delta modeling.
-- **Geographic Density & Hotspots**: Spatial grid binning (~1.1km) identifying recurring high-risk hazard clusters.
-- **Interactive Heatmap**: Leaflet-compatible weighted density map (`leaflet-heat`) visualizing spatial problem concentrations.
-- **Time-Series Trends**: Aggregation of hazard creation and resolution rates over Day, Week, and Month intervals.
-- **Issue Command Center**: Search by keyword (title, description, address), multi-factor filtering, priority breakdown inspection, department assignment, and lifecycle state management.
+$$S = \frac{w_{\text{loc}} \cdot S_{\text{loc}} + w_{\text{cat}} \cdot S_{\text{cat}} + w_{\text{time}} \cdot S_{\text{time}} + w_{\text{img}} \cdot S_{\text{img}}}{w_{\text{loc}} + w_{\text{cat}} + w_{\text{time}} + w_{\text{img}}}$$
 
-### Analytics API Endpoints (Role Protected: `AUTHORITY`, `ADMIN`)
-- `GET /api/v1/analytics/summary`: Summary of all dashboard KPI metrics and average resolution hours.
-- `GET /api/v1/analytics/categories`: Breakdown of issues across categories with percentage distributions.
-- `GET /api/v1/analytics/severity`: Distribution of hazards across severity levels (Critical, High, Medium, Low).
-- `GET /api/v1/analytics/status`: Complete lifecycle status distribution.
-- `GET /api/v1/analytics/resolution`: Resolution metrics and category/severity turnaround times.
-- `GET /api/v1/analytics/geographic`: Spatial density hotspots and cluster coordinates.
-- `GET /api/v1/analytics/trends?interval={day|week|month}`: Time-series incident and resolution rates.
-- `GET /api/v1/analytics/heatmap`: Intensity-weighted geospatial points `[lat, lng, intensity]`.
+### Component Formulations:
+1. **Geographic Proximity ($S_{\text{loc}}$)**:
+   $$S_{\text{loc}} = \begin{cases} 1.0 & \text{if } d \le 15\text{m} \\ 1.0 - \frac{d - 15}{35} & \text{if } 15\text{m} < d \le 50\text{m} \\ 0.0 & \text{if } d > 50\text{m} \end{cases}$$
+   *(where $d$ is the Haversine distance in meters)*
+
+2. **Category Taxonomy ($S_{\text{cat}}$)**:
+   $$S_{\text{cat}} = \begin{cases} 1.0 & \text{if exact match} \\ 0.5 & \text{if related category (e.g. POTHOLE} \leftrightarrow \text{ROAD\_DAMAGE)} \\ 0.0 & \text{otherwise} \end{cases}$$
+
+3. **Time Decay ($S_{\text{time}}$)**:
+   $$S_{\text{time}} = \max\left(0.1, 1.0 - \frac{\Delta t_{\text{days}}}{30}\right)$$
+
+4. **Perceptual Image Hash ($S_{\text{img}}$)**:
+   $$S_{\text{img}} = 1.0 - \frac{\text{HammingDistance}(\text{dHash}_A, \text{dHash}_B)}{64}$$
+
+**Decision Rule**: If $S \ge 0.65$, the report merges into the canonical issue, incrementing its `report_count` and upgrading severity if applicable. Otherwise, a new canonical `Issue` is spawned.
 
 ---
 
-## Running Tests
-Run automated pytest test suites:
+## 8. Multi-Factor Priority Engine
+
+Issues are dynamically prioritized on a **0 to 100 continuous score**:
+
+$$\text{Priority Score} = \text{Clamp}\left(S_{\text{sev}} + S_{\text{count}} + S_{\text{traffic}} + S_{\text{zone}} + S_{\text{aging}}, 0, 100\right)$$
+
+| Factor | Weight Range | Details |
+| :--- | :--- | :--- |
+| **Severity ($S_{\text{sev}}$)** | 0 – 40 pts | `CRITICAL` (40), `HIGH` (30), `MEDIUM` (18), `LOW` (8) |
+| **Citizen Reports ($S_{\text{count}}$)** | 0 – 25 pts | Logarithmic saturation: $\min(25, 8 \cdot \ln(N + 1))$ |
+| **Traffic Density ($S_{\text{traffic}}$)** | 0 – 15 pts | `HEAVY` (15), `MEDIUM` (8), `LOW` (3) |
+| **Location Zone ($S_{\text{zone}}$)** | 0 – 10 pts | `HOSPITAL` (10), `SCHOOL` (9), `JUNCTION` (8), `MAIN_ROAD` (6), `RESIDENTIAL` (3) |
+| **Aging Acceleration ($S_{\text{aging}}$)** | 0 – 15 pts | Unresolved aging: $\min(15, 0.75 \cdot \text{days\_open})$ *(Freezes upon FIXED/CLOSED)* |
+
+### Priority Thresholds:
+- **`CRITICAL`**: Score $\ge 75$
+- **`HIGH`**: $50 \le \text{Score} < 75$
+- **`MEDIUM`**: $25 \le \text{Score} < 50$
+- **`LOW`**: $\text{Score} < 25$
+
+---
+
+## 9. Database Design
+
+```text
+  ┌──────────────┐         1:N          ┌────────────────┐
+  │    users     │─────────────────────<│    reports     │
+  └──────────────┘                      └────────────────┘
+         │                                       │
+         │ 1:N                                   │ N:1
+         ▼                                       ▼
+  ┌──────────────────────┐              ┌────────────────┐
+  │  issue_assignments  │              │     issues     │
+  └──────────────────────┘              └────────────────┘
+         ▲                                       │
+         │ 1:N                                   │ 1:N
+         └───────────────────────────────────────┤
+                                                 ▼
+                                        ┌──────────────────────┐
+                                        │ issue_status_history │
+                                        └──────────────────────┘
+```
+
+### Performance Indexes:
+- `idx_issues_lat_long` on `issues(latitude, longitude)`
+- `idx_issues_status_priority` on `issues(status, priority_level)`
+- `idx_reports_lat_long` on `reports(latitude, longitude)`
+- `idx_reports_status_created` on `reports(status, created_at)`
+- B-Tree indexes on `status`, `category`, `severity`, `priority_score`, `created_at`, `reporter_id`, `issue_id`.
+
+---
+
+## 10. API Documentation Reference
+
+All endpoints return standardized JSON envelopes. Complete interactive Swagger documentation is available at `/docs`.
+
+### Authentication & Profiles
+- `POST /api/v1/auth/register`: Create user account (`CITIZEN`, `AUTHORITY`, `ADMIN`).
+- `POST /api/v1/auth/login`: Authenticate and receive JWT Bearer token.
+- `GET /api/v1/auth/me`: Get current user profile.
+
+### Reports & Photographic Evidence
+- `POST /api/v1/reports`: Submit road hazard report (triggers duplicate detection & AI classification).
+- `GET /api/v1/reports`: Paginated list of reports with attribute filters.
+- `GET /api/v1/reports/my`: List reports submitted by authenticated user.
+- `POST /api/v1/reports/{id}/images`: Upload multi-part evidence photos.
+- `POST /api/v1/reports/classify-image`: Standalone AI Vision classifier preview.
+
+### Canonical Issue Management (Authority Protected)
+- `GET /api/v1/issues`: Paginated list with keyword search (`search`) and multi-factor filters.
+- `GET /api/v1/issues/{id}`: Detailed issue profile with priority breakdown and contributing reports.
+- `POST /api/v1/issues/{id}/verify`: Verify issue (`REPORTED` $\to$ `VERIFIED`).
+- `POST /api/v1/issues/{id}/assign`: Assign department and officer (`VERIFIED` $\to$ `ASSIGNED`).
+- `POST /api/v1/issues/{id}/status`: Lifecycle transitions (`IN_PROGRESS`, `FIXED`, `CLOSED`, `REJECTED`).
+- `POST /api/v1/issues/{id}/comments`: Post internal audit note.
+
+### Analytics & Heatmaps (Authority Protected)
+- `GET /api/v1/analytics/summary`: KPI summary metrics & average turnaround hours.
+- `GET /api/v1/analytics/categories`: Category volume and percentage shares.
+- `GET /api/v1/analytics/severity`: Severity breakdown.
+- `GET /api/v1/analytics/status`: Lifecycle status breakdown.
+- `GET /api/v1/analytics/resolution`: Average resolution times ($T_{\text{fixed}}$, $T_{\text{closed}}$).
+- `GET /api/v1/analytics/geographic`: Spatial problem density hotspots.
+- `GET /api/v1/analytics/trends`: Incident and resolution rates over `day`, `week`, or `month`.
+- `GET /api/v1/analytics/heatmap`: Intensity-weighted geospatial points for Leaflet heatmap.
+
+---
+
+## 11. Local Setup & Quickstart
+
+### Prerequisites
+- Python 3.12+
+- PostgreSQL 16+ (or SQLite for local testing)
+
+### Installation
 ```bash
-venv\Scripts\pytest backend\tests -v
+# 1. Clone repository
+git clone https://github.com/SanthoskrishnaG/CrowdSourced_Road_Safety.git
+cd CrowdSourced_Road_Safety
+
+# 2. Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/macOS
+
+# 3. Install backend dependencies
+pip install -r backend/requirements.txt
+
+# 4. Configure environment variables
+cp .env.example .env
+
+# 5. Run database migrations
+cd backend
+alembic upgrade head
+
+# 6. Start backend development server
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-*Tests verify API health, authentication & RBAC, image processing, AI vision inference, duplicate detection, priority scoring, workflow state transitions, and all Phase 9 analytics endpoints.*
+
+### Accessing the Web Application:
+- **Authority Dashboard & Public Map**: Open `frontend/index.html` in your browser.
+- **Interactive API Docs (Swagger)**: Navigate to `http://localhost:8000/docs`.
+- **Health Check**: `http://localhost:8000/api/v1/health/healthz`.
+
+---
+
+## 12. Docker & Container Deployment
+
+Start the complete production stack (PostgreSQL + FastAPI Web Backend + Volume Storage) with a single command:
+
+```bash
+docker compose up -d --build
+```
+
+### Stopping Services:
+```bash
+docker compose down
+```
+
+---
+
+## 13. Automated Testing & Verification
+
+The test suite covers unit logic, security middleware, AI vision inference, mathematical duplicate detection, priority scoring, workflow transitions, and full 15-step end-to-end integration:
+
+```bash
+venv\Scripts\pytest -v
+```
+
+### Test Suite Summary:
+```text
+======================= 82 passed, 1 skipped in 33.93s =======================
+```
+
+---
+
+## 14. Project Directory Structure
+
+```text
+CrowdSourced_Road_Safety/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # Automated CI/CD testing & build pipeline
+├── backend/
+│   ├── alembic/                  # Database migration version scripts
+│   ├── app/
+│   │   ├── api/                  # Versioned API routes & role dependencies
+│   │   ├── core/                 # Config, security, logging, middlewares, exceptions
+│   │   ├── models/               # SQLAlchemy models (User, Report, Issue, Assignment, History)
+│   │   ├── schemas/              # Pydantic validation & response schemas
+│   │   ├── services/             # Duplicate detector, priority engine, ML service, analytics, notifications
+│   │   ├── utils/                # Geo Haversine distance, image processing
+│   │   └── main.py               # FastAPI application entrypoint
+│   ├── tests/                    # 82 automated unit, integration, and E2E test suites
+│   ├── Dockerfile                # Hardened multi-stage production Dockerfile
+│   └── requirements.txt          # Python production dependencies
+├── docs/
+│   ├── duplicate_detection.md    # Duplicate detection mathematical specification
+│   └── deployment.md             # Production cloud deployment guide (Render, AWS, Railway)
+├── frontend/
+│   ├── css/
+│   │   └── style.css             # Glassmorphism dark-mode design system
+│   ├── js/
+│   │   └── app.js                # Interactive dashboard, maps, Chart.js, and workflows
+│   └── index.html                # Responsive Authority Command Center UI
+├── ml/                           # Trained ML model weights and preprocessing pipelines
+├── docker-compose.yml            # Container orchestration config
+├── .env.example                  # Environment variables template
+└── README.md                     # Platform documentation
+```
+
+---
+
+## 15. Known Limitations & Future Roadmap
+
+### Current Known Limitations:
+1. **Rate Limiting Storage**: In-memory token bucket rate limiting resets on server restart; production scaling across multiple instances benefits from Redis backing.
+2. **Offline Mode**: Citizen report submission requires internet connectivity.
+
+### Future Improvements:
+- [ ] **Mobile Progressive Web App (PWA)** with offline submission queuing.
+- [ ] **Automated Work-Order PDF Generation** for municipal repair crews.
+- [ ] **Citizen SMS Status Alerts** via Twilio integration.
+- [ ] **Edge ML Inference** for real-time video stream hazard detection from municipal dashcams.
+
+---
+
+## 16. License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

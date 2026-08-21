@@ -28,12 +28,14 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ENVIRONMENT=development
-      - SECRET_KEY=dev_secret_key_1234567890
+      - ENVIRONMENT=production
+      - SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/road_safety
       - UPLOAD_DIRECTORY=/app/uploads
+      - LOG_LEVEL=INFO
+      - RATE_LIMIT_PER_MINUTE=120
+      - CORS_ORIGINS=["*"]
     volumes:
-      - ./backend:/app
       - uploads_data:/app/uploads
     depends_on:
       db:

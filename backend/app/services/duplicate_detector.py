@@ -42,7 +42,7 @@ def calculate_dhash(image_path: str) -> Optional[int]:
         with Image.open(image_path) as img:
             # Convert to grayscale and resize to 9x8
             img = img.convert('L').resize((9, 8), Image.Resampling.LANCZOS)
-            pixels = list(img.getdata())
+            pixels = list(img.tobytes())
             # Compute difference between adjacent pixels in each row
             diff = []
             for row in range(8):

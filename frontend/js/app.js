@@ -1251,8 +1251,9 @@ function initDiagnosticModal() {
         formData.append('file', fileInput.files[0]);
 
         try {
-            const res = await fetch(`${API_BASE_URL}/reports/classify`, {
+            const res = await fetch(`${API_BASE_URL}/reports/classify-image`, {
                 method: 'POST',
+                headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
                 body: formData
             });
 
