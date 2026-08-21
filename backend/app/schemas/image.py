@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
+from app.schemas.classification import ImageClassificationResponse
 
 
 class ReportImageResponse(BaseModel):
@@ -14,5 +15,6 @@ class ReportImageResponse(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
     uploaded_at: datetime
+    classification: Optional[ImageClassificationResponse] = None
 
     model_config = ConfigDict(from_attributes=True)

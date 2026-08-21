@@ -4,6 +4,7 @@ from app.models.user import User
 from app.models.report import RoadReport
 from app.models.image import ReportImage
 from app.models.issue import Issue
+from app.models.classification import ImageClassification
 
 
 

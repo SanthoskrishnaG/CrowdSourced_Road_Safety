@@ -35,3 +35,9 @@ class ReportImage(Base):
 
     # Relationships
     report = relationship("RoadReport", back_populates="images")
+    classification = relationship(
+        "ImageClassification",
+        back_populates="image",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )

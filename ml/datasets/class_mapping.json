@@ -1,0 +1,42 @@
+{
+  "classes": [
+    "POTHOLE",
+    "ROAD_DAMAGE",
+    "GARBAGE",
+    "BROKEN_STREETLIGHT",
+    "OBSTRUCTION",
+    "FLOODING",
+    "DAMAGED_SIGN",
+    "OTHER"
+  ],
+  "class_to_idx": {
+    "POTHOLE": 0,
+    "ROAD_DAMAGE": 1,
+    "GARBAGE": 2,
+    "BROKEN_STREETLIGHT": 3,
+    "OBSTRUCTION": 4,
+    "FLOODING": 5,
+    "DAMAGED_SIGN": 6,
+    "OTHER": 7
+  },
+  "idx_to_class": {
+    "0": "POTHOLE",
+    "1": "ROAD_DAMAGE",
+    "2": "GARBAGE",
+    "3": "BROKEN_STREETLIGHT",
+    "4": "OBSTRUCTION",
+    "5": "FLOODING",
+    "6": "DAMAGED_SIGN",
+    "7": "OTHER"
+  },
+  "descriptions": {
+    "POTHOLE": "Asphalt depression, deep road cavities, cratering in pavement",
+    "ROAD_DAMAGE": "Alligator cracking, fissures, rutting, sinkholes, road wear",
+    "GARBAGE": "Litter, roadside debris, dumping piles, construction waste",
+    "BROKEN_STREETLIGHT": "Damaged poles, non-functional luminaires, exposed wiring",
+    "OBSTRUCTION": "Fallen trees, heavy debris, vehicle wreckage blocking roadway",
+    "FLOODING": "Submerged road section, standing water, overflowing stormwater",
+    "DAMAGED_SIGN": "Vandalized, tilted, knocked-down, or obscured traffic signs",
+    "OTHER": "General road hazards, uncovered manholes, eroded road shoulders"
+  }
+}

@@ -1,8 +1,10 @@
 import os
+# pyrefly: ignore [missing-import]
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "dev_secret_key_1234567890"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/road_safety"

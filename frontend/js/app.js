@@ -285,5 +285,67 @@ async function runHealthCheck() {
 
 btnCheck.addEventListener('click', runHealthCheck);
 
+// --- AI VISION CLASSIFIER DEMO ---
+const btnClassifyDemo = document.getElementById('btn-classify-demo');
+const aiDemoFileInput = document.getElementById('ai-demo-file');
+const aiResultBox = document.getElementById('ai-classification-result');
+const aiPredBadge = document.getElementById('ai-pred-badge');
+const aiConfBar = document.getElementById('ai-confidence-bar');
+const aiProbBreakdown = document.getElementById('ai-prob-breakdown');
+
+if (btnClassifyDemo && aiDemoFileInput) {
+    btnClassifyDemo.addEventListener('click', async () => {
+        const file = aiDemoFileInput.files[0];
+        if (!file) {
+            addLog('Please select an image file first to test classification.', 'error');
+            return;
+        }
+
+        addLog(`Analyzing image "${file.name}" with Computer Vision ML Model...`, 'info');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            // First register a demo test citizen token if needed or call endpoint
+            const res = await fetch(`${API_BASE_URL}/reports/classify-image`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    // Public or session token if available
+                }
+            });
+
+            if (!res.ok) {
+                // If auth is required, log and show simulated result with real model feedback
+                addLog(`Inference endpoint returned HTTP ${res.status}.`, 'error');
+                return;
+            }
+
+            const data = await res.json();
+            const pct = Math.round(data.confidence * 100);
+            const icon = CATEGORY_ICONS[data.predicted_category] || '📌';
+            const catName = CATEGORY_NAMES[data.predicted_category] || data.predicted_category;
+
+            aiResultBox.style.display = 'block';
+            aiPredBadge.innerHTML = `<span style="color: var(--success);">🤖 AI Classified:</span> ${icon} ${catName} (${pct}% confidence)`;
+            aiConfBar.style.width = `${pct}%`;
+
+            let probLines = 'Top Category Probabilities:<br>';
+            const sortedProbs = Object.entries(data.probabilities || {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4);
+
+            sortedProbs.forEach(([k, v]) => {
+                probLines += `• ${k}: ${(v * 100).toFixed(1)}%<br>`;
+            });
+            aiProbBreakdown.innerHTML = probLines;
+
+            addLog(`Classification Success: ${data.predicted_category} (${pct}% confidence) via ${data.model_version}`, 'success');
+        } catch (err) {
+            addLog(`AI Inference Error: ${err.message}`, 'error');
+        }
+    });
+}
+
 // Initialize map on DOM load
 window.addEventListener('DOMContentLoaded', initMap);
