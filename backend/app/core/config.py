@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "notifications@roadsafety.gov"
     SMTP_FROM_NAME: str = "Road Infrastructure Safety Platform"
 
+    # Twilio SMS Alert Configuration
+    SMS_ENABLED: bool = False
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_FROM_NUMBER: Optional[str] = None
+
     @field_validator("ENVIRONMENT")
     @classmethod
     def validate_environment(cls, v: str) -> str:

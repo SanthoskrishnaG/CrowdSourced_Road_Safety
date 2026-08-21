@@ -1162,21 +1162,276 @@ body {
 .mt-4 { margin-top: 1rem; }
 .w-100 { width: 100%; }
 
-/* ================= RESPONSIVE MEDIA QUERIES ================= */
+/* ================= PWA OFFLINE BANNER ================= */
+.offline-banner-top {
+    position: sticky;
+    top: 0;
+    z-index: 2000;
+    background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid #334155;
+    padding: 8px 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.offline-pill {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.online-pill {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.btn-sync-now {
+    margin-left: auto;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-sync-now:hover {
+    background: var(--primary-hover);
+    transform: scale(1.02);
+}
+
+/* ================= DASHCAM EDGE AI ANALYZER ================= */
+.dashcam-layout-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.dashcam-controls-card, .dashcam-results-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+
+.dashcam-detections-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.dashcam-item-card {
+    background: var(--bg-card-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    transition: var(--transition-fast);
+}
+
+.dashcam-item-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.dashcam-thumb-wrap {
+    width: 84px;
+    height: 64px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dashcam-thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.dashcam-item-info {
+    flex: 1;
+}
+
+.dashcam-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.dashcam-time-tag {
+    background: rgba(37, 99, 235, 0.2);
+    color: #60a5fa;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.dashcam-item-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.btn-convert-report {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-convert-report:hover {
+    filter: brightness(1.1);
+}
+
+.summary-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.summary-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-download-pdf {
+    background: rgba(37, 99, 235, 0.15);
+    border-color: rgba(37, 99, 235, 0.4);
+    color: #93c5fd;
+}
+
+.btn-download-pdf:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* ================= ISSUE INTELLIGENCE & CITIZEN RE-VERIFICATION ================= */
+.intelligence-card-wrap {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.intelligence-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.intel-stat-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.intel-lbl {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 2px;
+}
+
+.intel-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.intel-sub {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.sla-progress-box {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.sla-bar-wrap {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.sla-bar {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+
+.escalation-alert-pill {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.citizen-reverify-box {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
 @media (max-width: 992px) {
-    .dashboard-metrics-row { flex-direction: column; }
-    .charts-2col-grid { grid-template-columns: 1fr; }
-    .issue-modal-grid { grid-template-columns: 1fr; }
-    .app-sidebar {
-        position: fixed;
-        left: 0;
-        top: 62px;
-        bottom: 0;
-        z-index: 1500;
-        transform: translateX(-100%);
+    .dashcam-layout-grid {
+        grid-template-columns: 1fr;
     }
-    .app-sidebar.open {
-        transform: translateX(0);
-    }
-    .mobile-menu-toggle { display: block; }
 }

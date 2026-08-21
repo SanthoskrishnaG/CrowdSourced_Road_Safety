@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Authority Command Center & Analytics | Road Safety Intelligence Platform</title>
     
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +26,12 @@
 </head>
 <body class="theme-dark">
     <div class="glow-bg"></div>
+
+    <!-- PWA Offline Status Banner -->
+    <div id="offline-banner" class="offline-banner-top" style="display: none;">
+        <div class="offline-pill"><span class="pulse-dot"></span> Offline Mode</div>
+        <span>Draft reports will be queued locally on your device.</span>
+    </div>
 
     <!-- Top Navigation Bar -->
     <header class="navbar">
@@ -83,6 +94,10 @@
                 <button class="nav-tab" data-view="public-map">
                     <span class="nav-icon">🗺️</span>
                     <span class="nav-label">Public Map View</span>
+                </button>
+                <button class="nav-tab" data-view="dashcam">
+                    <span class="nav-icon">📹</span>
+                    <span class="nav-label">Dashcam Edge AI</span>
                 </button>
             </nav>
 
@@ -468,7 +483,7 @@
                 </div>
             </section>
 
-            <!-- ================= VIEW 5: PUBLIC CITIZEN MAP (Legacy Phase 7/8) ================= -->
+            <!-- ================= VIEW 5: PUBLIC CITIZEN MAP ================= -->
             <section class="view-panel" id="view-public-map">
                 <div class="panel-header-banner">
                     <div>
@@ -484,6 +499,78 @@
                     <div id="map" class="map-canvas"></div>
                 </div>
             </section>
+
+            <!-- ================= VIEW 6: DASHCAM EDGE ML STREAM ANALYZER ================= -->
+            <section class="view-panel" id="view-dashcam">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>Edge ML Dashcam Stream Analyzer</h2>
+                        <p class="subtitle">Continuous hazard detection on live video feeds with temporal persistence & GPS interpolation.</p>
+                    </div>
+                    <div class="banner-actions">
+                        <span class="badge badge-success">Edge Inference Active</span>
+                    </div>
+                </div>
+
+                <div class="dashcam-layout-grid">
+                    <!-- Stream Controls & Uploader -->
+                    <div class="dashcam-controls-card">
+                        <h3>📹 Video Stream Feed Ingestion</h3>
+                        <p class="text-muted text-sm mb-3">Upload dashcam video file (MP4/WebM) or run edge camera simulation:</p>
+                        
+                        <div class="form-group mb-3">
+                            <label class="form-label">Select Video File</label>
+                            <input type="file" id="dashcam-file-input" class="form-control" accept="video/mp4,video/webm,image/*">
+                        </div>
+
+                        <div class="form-row-2 mb-3">
+                            <div class="form-group">
+                                <label class="form-label">Duration (sec)</label>
+                                <input type="number" id="dashcam-duration" class="form-control" value="10" min="2" max="60">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Sample Rate (sec)</label>
+                                <input type="number" id="dashcam-interval" class="form-control" value="1.0" step="0.5" min="0.5" max="5">
+                            </div>
+                        </div>
+
+                        <div class="form-row-2 mb-3">
+                            <div class="form-group">
+                                <label class="form-label">Route Start (Lat, Lng)</label>
+                                <input type="text" id="dashcam-start-coords" class="form-control" value="12.9716, 77.5946">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Route End (Lat, Lng)</label>
+                                <input type="text" id="dashcam-end-coords" class="form-control" value="12.9780, 77.6020">
+                            </div>
+                        </div>
+
+                        <button id="btn-run-dashcam-analysis" class="btn btn-primary w-100 mb-2">
+                            ⚡ Run Edge ML Video Inference
+                        </button>
+                        <button id="btn-demo-dashcam-stream" class="btn btn-outline w-100">
+                            🚗 Run Simulated Dashcam Patrol
+                        </button>
+                    </div>
+
+                    <!-- Stream Live Detection Results & Timeline -->
+                    <div class="dashcam-results-card">
+                        <div class="card-header-flex">
+                            <h3>🔍 Hazard Detection Timeline (<span id="dashcam-detection-count">0</span> Detected)</h3>
+                            <span id="dashcam-fps-badge" class="badge">30 FPS Stream</span>
+                        </div>
+
+                        <div id="dashcam-summary-chips" class="summary-chips-row mb-3"></div>
+
+                        <div id="dashcam-detections-list" class="dashcam-detections-scroll">
+                            <div class="empty-state-card">
+                                <span class="empty-icon">📹</span>
+                                <p>Upload a video clip or run simulated patrol to inspect real-time hazard detections.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -495,7 +582,12 @@
                     <span class="badge" id="modal-category-badge">POTHOLE</span>
                     <h3 id="modal-issue-title">Issue Title</h3>
                 </div>
-                <button class="btn-close" id="btn-close-issue-modal">&times;</button>
+                <div class="modal-header-actions">
+                    <button class="btn btn-sm btn-outline btn-download-pdf" id="btn-download-work-order">
+                        📄 Download Work Order (PDF)
+                    </button>
+                    <button class="btn-close" id="btn-close-issue-modal">&times;</button>
+                </div>
             </div>
 
             <div class="modal-body-scroll">
@@ -539,6 +631,58 @@
                             <h4>Priority Score Breakdown</h4>
                             <div class="priority-breakdown-bars" id="modal-priority-bars">
                                 <!-- Dynamic Breakdown Bars -->
+                            </div>
+                        </div>
+
+                        <!-- Issue Intelligence & Risk Trinity Card -->
+                        <div class="detail-section intelligence-card-wrap">
+                            <div class="card-header-flex">
+                                <h4>🧠 Issue Intelligence & Risk Model</h4>
+                                <span class="badge" id="modal-sla-badge">SLA: ON TRACK</span>
+                            </div>
+                            <div class="intelligence-stats-grid">
+                                <div class="intel-stat-box">
+                                    <span class="intel-lbl">Road Health Index</span>
+                                    <h4 class="intel-val text-primary-glow" id="modal-road-health-val">-- / 100</h4>
+                                    <span class="intel-sub" id="modal-road-health-status">Analyzing...</span>
+                                </div>
+                                <div class="intel-stat-box">
+                                    <span class="intel-lbl">Accident Risk Probability</span>
+                                    <h4 class="intel-val text-critical" id="modal-accident-risk-val">--%</h4>
+                                    <span class="intel-sub" id="modal-accident-risk-lvl">Predicting...</span>
+                                </div>
+                            </div>
+                            <div class="sla-progress-box mt-2">
+                                <div class="d-flex justify-between text-xs mb-1">
+                                    <span id="modal-sla-target">SLA Window: 24h</span>
+                                    <span id="modal-sla-remaining">Remaining: --</span>
+                                </div>
+                                <div class="sla-bar-wrap">
+                                    <div id="modal-sla-bar" class="sla-bar bg-blue" style="width: 50%;"></div>
+                                </div>
+                                <div id="modal-escalation-alert" class="escalation-alert-pill mt-2" style="display: none;">
+                                    ⚠️ ESCALATED: Exceeded target resolution window.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Citizen Re-Verification Widget (Visible on FIXED) -->
+                        <div class="detail-section citizen-reverify-box" id="modal-citizen-reverify-box" style="display: none;">
+                            <div class="card-header-flex">
+                                <h4>⭐ Citizen Re-Verification</h4>
+                                <span class="badge badge-warning">Awaiting Citizen Confirmation</span>
+                            </div>
+                            <p class="text-xs text-muted mb-2">Municipal crews have marked this hazard as FIXED. Please verify whether the road repair is satisfactory.</p>
+                            <div class="reverify-inputs">
+                                <input type="text" id="reverify-feedback" class="form-control form-control-sm mb-2" placeholder="Citizen comments on repair quality...">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-success btn-sm flex-1" id="btn-citizen-confirm-fixed">
+                                        ✔️ Confirm Fixed (Close)
+                                    </button>
+                                    <button class="btn btn-danger btn-sm flex-1" id="btn-citizen-dispute-reopen">
+                                        ❌ Dispute Repair (Reopen)
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -719,6 +863,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     
     <!-- Application Logic -->
+    <script src="js/offline-queue.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

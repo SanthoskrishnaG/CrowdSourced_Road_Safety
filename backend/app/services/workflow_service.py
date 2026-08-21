@@ -31,8 +31,9 @@ VALID_TRANSITIONS: Dict[ReportStatus, List[ReportStatus]] = {
     ReportStatus.VERIFIED: [ReportStatus.ASSIGNED, ReportStatus.IN_PROGRESS, ReportStatus.REJECTED],
     ReportStatus.ASSIGNED: [ReportStatus.IN_PROGRESS, ReportStatus.VERIFIED, ReportStatus.REJECTED],
     ReportStatus.IN_PROGRESS: [ReportStatus.FIXED, ReportStatus.ASSIGNED, ReportStatus.REJECTED],
-    ReportStatus.FIXED: [ReportStatus.CLOSED, ReportStatus.IN_PROGRESS],
-    ReportStatus.CLOSED: [ReportStatus.VERIFIED],  # Admin reopen
+    ReportStatus.FIXED: [ReportStatus.CLOSED, ReportStatus.REOPENED, ReportStatus.IN_PROGRESS],
+    ReportStatus.REOPENED: [ReportStatus.IN_PROGRESS, ReportStatus.ASSIGNED, ReportStatus.VERIFIED, ReportStatus.CLOSED],
+    ReportStatus.CLOSED: [ReportStatus.VERIFIED, ReportStatus.REOPENED],  # Admin reopen
     ReportStatus.REJECTED: [ReportStatus.REPORTED],  # Admin reopen
 }
 
@@ -266,3 +267,56 @@ def add_issue_comment(
     db.commit()
     db.refresh(history_entry)
     return history_entry
+
+
+def citizen_verify_issue(
+    db: Session,
+    issue: Issue,
+    current_user: User,
+    verified: bool,
+    feedback: Optional[str] = None,
+    rating: Optional[int] = None
+) -> Issue:
+    """
+    Handles citizen re-verification of a FIXED issue.
+    - If verified=True: transitions to CLOSED.
+    - If verified=False (disputed): transitions to REOPENED with priority bump.
+    """
+    if issue.status != ReportStatus.FIXED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Citizen verification is only available for issues in 'FIXED' status (current status: {issue.status.value})."
+        )
+
+    if verified:
+        new_status = ReportStatus.CLOSED
+        rating_str = f" Rating: {rating}/5." if rating else ""
+        comment = f"[Citizen Verified] Repair confirmed fixed by citizen.{rating_str} Remarks: {feedback or 'Satisfied'}"
+    else:
+        new_status = ReportStatus.REOPENED
+        comment = f"[Citizen Disputed] Repair rejected by citizen: {feedback or 'Issue still persists on site'}. Reopened for immediate re-inspection."
+
+    prev_status = issue.status
+    issue.status = new_status
+    issue.updated_at = datetime.now(timezone.utc)
+
+    # If reopened, boost priority
+    if new_status == ReportStatus.REOPENED:
+        issue.priority_score = min(100.0, issue.priority_score + 20.0)
+        issue.priority_level = PriorityLevel.CRITICAL if issue.priority_score >= 75.0 else PriorityLevel.HIGH
+
+    log_status_history(
+        db=db,
+        issue=issue,
+        previous_status=prev_status,
+        new_status=new_status,
+        changed_by_user=current_user,
+        comment=comment
+    )
+
+    for rep in issue.reports:
+        rep.status = new_status
+
+    db.commit()
+    db.refresh(issue)
+    return issue

@@ -8,6 +8,7 @@ from app.models.user import UserRole
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
+    phone_number: Optional[str] = None
     role: Optional[UserRole] = UserRole.CITIZEN
 
 

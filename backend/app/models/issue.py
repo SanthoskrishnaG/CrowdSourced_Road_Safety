@@ -1,9 +1,10 @@
 import uuid
 import enum
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, Integer, Enum, DateTime, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
 from app.models.report import ReportCategory, ReportSeverity, ReportStatus
@@ -39,66 +40,66 @@ class Issue(Base):
         Index("idx_issues_status_priority", "status", "priority_level"),
     )
 
-    id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
         index=True
     )
-    category = Column(
+    category: Mapped[ReportCategory] = mapped_column(
         Enum(ReportCategory),
         nullable=False,
         index=True
     )
-    title = Column(String(150), nullable=False)
-    description = Column(Text, nullable=True)
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
-    address = Column(String(255), nullable=True)
-    severity = Column(
+    title: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    severity: Mapped[ReportSeverity] = mapped_column(
         Enum(ReportSeverity),
         nullable=False,
         index=True
     )
-    status = Column(
+    status: Mapped[ReportStatus] = mapped_column(
         Enum(ReportStatus),
         default=ReportStatus.REPORTED,
         nullable=False,
         index=True
     )
-    priority_score = Column(Float, default=0.0, nullable=False, index=True)
-    priority_level = Column(
+    priority_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False, index=True)
+    priority_level: Mapped[PriorityLevel] = mapped_column(
         Enum(PriorityLevel),
         default=PriorityLevel.LOW,
         nullable=False,
         index=True
     )
-    report_count = Column(Integer, default=1, nullable=False)
+    report_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     # Multi-factor priority context fields
-    traffic_density = Column(
+    traffic_density: Mapped[TrafficDensity] = mapped_column(
         Enum(TrafficDensity),
         default=TrafficDensity.MEDIUM,
         nullable=False
     )
-    location_zone = Column(
+    location_zone: Mapped[LocationZone] = mapped_column(
         Enum(LocationZone),
         default=LocationZone.RESIDENTIAL,
         nullable=False
     )
-    assigned_department = Column(
+    assigned_department: Mapped[Optional[AuthorityDepartment]] = mapped_column(
         Enum(AuthorityDepartment),
         nullable=True,
         index=True
     )
 
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
         index=True
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -106,18 +107,18 @@ class Issue(Base):
     )
 
     # Relationships
-    reports = relationship(
+    reports: Mapped[List["RoadReport"]] = relationship(
         "RoadReport",
         back_populates="issue",
         order_by="desc(RoadReport.created_at)"
     )
-    assignments = relationship(
+    assignments: Mapped[List["IssueAssignment"]] = relationship(
         "IssueAssignment",
         back_populates="issue",
         cascade="all, delete-orphan",
         order_by="desc(IssueAssignment.assigned_at)"
     )
-    status_history = relationship(
+    status_history: Mapped[List["IssueStatusHistory"]] = relationship(
         "IssueStatusHistory",
         back_populates="issue",
         cascade="all, delete-orphan",

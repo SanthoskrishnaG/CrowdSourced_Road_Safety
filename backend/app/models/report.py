@@ -1,9 +1,10 @@
 import uuid
 import enum
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, Enum, ForeignKey, DateTime, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.core.database import Base
 
 
@@ -33,6 +34,7 @@ class ReportStatus(str, enum.Enum):
     IN_PROGRESS = "IN_PROGRESS"
     FIXED = "FIXED"
     CLOSED = "CLOSED"
+    REOPENED = "REOPENED"
     REJECTED = "REJECTED"
 
 
@@ -43,47 +45,48 @@ class RoadReport(Base):
         Index("idx_reports_status_created", "status", "created_at"),
     )
 
-    id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
         index=True
     )
-    reporter_id = Column(
+    reporter_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
-    category = Column(
+    category: Mapped[ReportCategory] = mapped_column(
         Enum(ReportCategory),
         nullable=False,
         index=True
     )
-    title = Column(String(100), nullable=False)
-    description = Column(Text, nullable=False)
-    severity = Column(
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[ReportSeverity] = mapped_column(
         Enum(ReportSeverity),
         nullable=False,
         index=True
     )
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
-    address = Column(String(255), nullable=True)
-    location_accuracy = Column(Float, nullable=True)
-    status = Column(
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    location_accuracy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(25), nullable=True)
+    status: Mapped[ReportStatus] = mapped_column(
         Enum(ReportStatus),
         default=ReportStatus.REPORTED,
         nullable=False,
         index=True
     )
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
         index=True
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -91,19 +94,17 @@ class RoadReport(Base):
     )
 
     # Relationships
-    reporter = relationship("User", back_populates="reports")
-    issue_id = Column(
+    reporter: Mapped["User"] = relationship("User", back_populates="reports")
+    issue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("issues.id", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
-    issue = relationship("Issue", back_populates="reports")
-    images = relationship(
+    issue: Mapped[Optional["Issue"]] = relationship("Issue", back_populates="reports")
+    images: Mapped[List["ReportImage"]] = relationship(
         "ReportImage",
         back_populates="report",
         cascade="all, delete-orphan",
         order_by="ReportImage.uploaded_at"
     )
-
-

@@ -7,6 +7,7 @@ from app.models.issue import PriorityLevel, LocationZone, TrafficDensity
 from app.models.assignment import AuthorityDepartment
 from app.schemas.report import PaginationMetadata
 from app.schemas.workflow import IssueAssignmentResponse, IssueStatusHistoryResponse, PriorityBreakdownResponse
+from app.schemas.intelligence import RoadHealthResponse, AccidentRiskPrediction, SLATrackingInfo
 
 
 class IssueReportSummary(BaseModel):
@@ -50,6 +51,9 @@ class IssueDetailResponse(IssueResponse):
     assignments: List[IssueAssignmentResponse] = []
     status_history: List[IssueStatusHistoryResponse] = []
     priority_breakdown: Optional[PriorityBreakdownResponse] = None
+    road_health: Optional[RoadHealthResponse] = None
+    risk_prediction: Optional[AccidentRiskPrediction] = None
+    sla: Optional[SLATrackingInfo] = None
 
 
 class IssuePaginationResponse(BaseModel):

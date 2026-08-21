@@ -1,0 +1,37 @@
+{
+  "name": "RoadOps — Municipal Road Infrastructure Platform",
+  "short_name": "RoadOps",
+  "description": "AI-Powered Civic Road Infrastructure Hazard Reporting & Management Platform",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/fluency/192/traffic-jam.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://img.icons8.com/fluency/512/traffic-jam.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["government", "utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Report Problem",
+      "url": "./index.html?action=report",
+      "description": "Submit a new road problem report"
+    },
+    {
+      "name": "Live Map",
+      "url": "./index.html?view=public-map",
+      "description": "View live civic hazard map"
+    }
+  ]
+}

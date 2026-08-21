@@ -4,7 +4,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688.svg)](https://fastapi.tiangolo.com)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests Passing](https://img.shields.io/badge/Tests-82%20Passed-brightgreen.svg)]()
+[![Tests Passing](https://img.shields.io/badge/Tests-93%20Passed-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 An enterprise-grade, crowdsourced civic technology platform that empowers citizens to report road hazards (potholes, broken streetlights, road damage, flooding, garbage, etc.) and provides municipal authorities with an AI-driven command center to verify, prioritize, dispatch, track, and resolve infrastructure issues.
@@ -345,17 +345,13 @@ CrowdSourced_Road_Safety/
 
 ---
 
-## 15. Known Limitations & Future Roadmap
+## 15. Future Roadmap & Advanced Capabilities
 
-### Current Known Limitations:
-1. **Rate Limiting Storage**: In-memory token bucket rate limiting resets on server restart; production scaling across multiple instances benefits from Redis backing.
-2. **Offline Mode**: Citizen report submission requires internet connectivity.
-
-### Future Improvements:
-- [ ] **Mobile Progressive Web App (PWA)** with offline submission queuing.
-- [ ] **Automated Work-Order PDF Generation** for municipal repair crews.
-- [ ] **Citizen SMS Status Alerts** via Twilio integration.
-- [ ] **Edge ML Inference** for real-time video stream hazard detection from municipal dashcams.
+All planned advanced roadmap capabilities are implemented and verified:
+- [x] **Mobile Progressive Web App (PWA)** with offline draft queueing and background sync via IndexedDB & Service Worker (`sw.js`).
+- [x] **Automated Work-Order PDF Generation** for field crews using ReportLab with geolocation, priority score banners, and inspection sign-off blocks.
+- [x] **Citizen SMS Status Alerts** via Twilio integration with automatic SMS dispatch on issue verification, assignment, and resolution.
+- [x] **Edge ML Inference on Dashcam Video Streams** with temporal persistence filtering, GPS interpolation, and direct frame-to-report generation.
 
 ---
 

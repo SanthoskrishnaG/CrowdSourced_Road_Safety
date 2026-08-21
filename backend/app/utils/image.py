@@ -119,16 +119,81 @@ def save_report_image(
     thumb_to_save.save(thumb_filepath, format=save_format, quality=80, optimize=True)
 
     # Relative paths for portable storage / URL generation
-    rel_main_path = os.path.join("uploads", "reports", str(report_id), main_filename).replace("\\", "/")
-    rel_thumb_path = os.path.join("uploads", "reports", str(report_id), thumb_filename).replace("\\", "/")
-
-    mime_type = f"image/{save_format.lower()}"
+    relative_file_path = os.path.join("uploads", "reports", str(report_id), main_filename).replace("\\", "/")
+    relative_thumb_path = os.path.join("uploads", "reports", str(report_id), thumb_filename).replace("\\", "/")
 
     return {
-        "file_path": rel_main_path,
-        "thumbnail_path": rel_thumb_path,
-        "file_type": mime_type,
+        "file_path": relative_file_path,
+        "thumbnail_path": relative_thumb_path,
+        "file_type": ext.lstrip("."),
         "file_size": len(file_bytes),
         "width": width,
-        "height": height,
+        "height": height
     }
+
+
+# ==============================================================================
+# Computer Vision Image Quality Assessment (Blur, Brightness, Contrast)
+# ==============================================================================
+
+def assess_image_quality(file_bytes: bytes) -> dict:
+    """
+    Evaluates image quality metrics to detect blurry, under-exposed,
+    or over-exposed road inspection photos before AI inference.
+    """
+    try:
+        with Image.open(io.BytesIO(file_bytes)) as img:
+            gray = img.convert('L').resize((128, 128))
+            pixels = list(gray.tobytes())
+
+            # 1. Brightness (Mean Luminance)
+            mean_brightness = sum(pixels) / len(pixels)
+
+            # 2. Contrast (Standard Deviation)
+            variance = sum((p - mean_brightness) ** 2 for p in pixels) / len(pixels)
+            contrast = variance ** 0.5
+
+            # 3. Sharpness / Blur score (Gradient variation)
+            # Compute horizontal and vertical differences across 128x128 grid
+            grad_sum = 0
+            w, h = 128, 128
+            for y in range(h - 1):
+                for x in range(w - 1):
+                    idx = y * w + x
+                    gx = abs(pixels[idx] - pixels[idx + 1])
+                    gy = abs(pixels[idx] - pixels[idx + w])
+                    grad_sum += (gx + gy)
+            blur_score = grad_sum / (w * h)
+
+            # Classification
+            if mean_brightness < 25:
+                quality_label = "POOR_DARK"
+                is_acceptable = False
+            elif mean_brightness > 240:
+                quality_label = "POOR_OVEREXPOSED"
+                is_acceptable = False
+            elif blur_score < 8.0:
+                quality_label = "POOR_BLURRY"
+                is_acceptable = False
+            elif blur_score > 25.0 and 40 <= mean_brightness <= 210:
+                quality_label = "EXCELLENT"
+                is_acceptable = True
+            else:
+                quality_label = "GOOD"
+                is_acceptable = True
+
+            return {
+                "blur_score": round(blur_score, 2),
+                "brightness": round(mean_brightness, 2),
+                "contrast": round(contrast, 2),
+                "quality_label": quality_label,
+                "is_acceptable_quality": is_acceptable
+            }
+    except Exception:
+        return {
+            "blur_score": 20.0,
+            "brightness": 128.0,
+            "contrast": 50.0,
+            "quality_label": "ACCEPTABLE",
+            "is_acceptable_quality": True
+        }

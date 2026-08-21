@@ -1047,12 +1047,52 @@ function populateIssueModalDetails(issue) {
                 </div>
             </div>
         `).join('');
-    }
-
     // Photos Gallery
     const photoGallery = document.getElementById('modal-photos-gallery');
     if (photoGallery) {
         loadIssuePhotos(issue.id, photoGallery);
+    }
+
+    // Intelligence Metrics & SLA
+    if (issue.road_health) {
+        document.getElementById('modal-road-health-val').textContent = `${issue.road_health.health_score.toFixed(1)} / 100`;
+        document.getElementById('modal-road-health-status').textContent = `Segment Condition: ${issue.road_health.health_status}`;
+    }
+
+    if (issue.risk_prediction) {
+        document.getElementById('modal-accident-risk-val').textContent = `${(issue.risk_prediction.risk_probability * 100).toFixed(0)}%`;
+        document.getElementById('modal-accident-risk-lvl').textContent = `Incident Risk: ${issue.risk_prediction.risk_level} (${issue.risk_prediction.estimated_traffic_delay_min}m delay)`;
+    }
+
+    if (issue.sla) {
+        const sla = issue.sla;
+        document.getElementById('modal-sla-badge').textContent = `SLA: ${sla.sla_status}`;
+        document.getElementById('modal-sla-badge').className = `badge ${sla.sla_status === 'BREACHED' ? 'badge-danger' : (sla.sla_status === 'APPROACHING_BREACH' ? 'badge-warning' : 'badge-success')}`;
+        document.getElementById('modal-sla-target').textContent = `SLA Window: ${sla.sla_target_hours}h Target`;
+        document.getElementById('modal-sla-remaining').textContent = `Remaining: ${sla.remaining_hours > 0 ? sla.remaining_hours.toFixed(1) + 'h' : '0.0h (Overdue)'}`;
+        
+        const slaPercent = Math.max(0, Math.min(100, (sla.remaining_hours / sla.sla_target_hours) * 100));
+        const slaBar = document.getElementById('modal-sla-bar');
+        if (slaBar) {
+            slaBar.style.width = `${slaPercent}%`;
+            slaBar.className = `sla-bar ${sla.sla_status === 'BREACHED' ? 'bg-red' : (sla.sla_status === 'APPROACHING_BREACH' ? 'bg-amber' : 'bg-blue')}`;
+        }
+
+        const alertBox = document.getElementById('modal-escalation-alert');
+        if (alertBox) {
+            if (sla.is_escalated) {
+                alertBox.style.display = 'block';
+                alertBox.textContent = `⚠️ ESCALATED: ${sla.escalation_reason || 'SLA breached'}`;
+            } else {
+                alertBox.style.display = 'none';
+            }
+        }
+    }
+
+    // Citizen Re-Verification Box (Visible on FIXED)
+    const reverifyBox = document.getElementById('modal-citizen-reverify-box');
+    if (reverifyBox) {
+        reverifyBox.style.display = issue.status === 'FIXED' ? 'block' : 'none';
     }
 
     // Status Timeline
@@ -1107,6 +1147,54 @@ function initActionHandlers() {
         document.getElementById('issue-detail-modal').classList.remove('active');
         activeIssueId = null;
     });
+
+    // Citizen Re-Verification Handlers
+    document.getElementById('btn-citizen-confirm-fixed')?.addEventListener('click', async () => {
+        if (!activeIssueId) return;
+        const feedback = document.getElementById('reverify-feedback')?.value || 'Satisfied with repair.';
+        await submitCitizenVerification(true, feedback, 5);
+    });
+
+    document.getElementById('btn-citizen-dispute-reopen')?.addEventListener('click', async () => {
+        if (!activeIssueId) return;
+        const feedback = document.getElementById('reverify-feedback')?.value || 'Hazard remains dangerous on road.';
+        await submitCitizenVerification(false, feedback, 1);
+    });
+
+    // Citizen Re-Verification Action
+    async function submitCitizenVerification(isVerified, feedbackText, ratingScore) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/issues/${activeIssueId}/citizen-verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify({
+                    verified: isVerified,
+                    feedback: feedbackText,
+                    rating: ratingScore
+                })
+            });
+
+            if (res.ok) {
+                const updated = await res.json();
+                if (isVerified) {
+                    alert(`Thank you! Issue marked CLOSED and citizen verification recorded.`);
+                } else {
+                    alert(`Issue REOPENED with expedited priority and urgent SLA escalation.`);
+                }
+                openIssueModal(activeIssueId);
+                loadIssuesTable(currentIssuePage);
+                fetchExecutiveKPIs();
+            } else {
+                const err = await res.json();
+                alert(`Verification failed: ${err.detail || 'Check status.'}`);
+            }
+        } catch (e) {
+            alert('Network error submitting citizen verification.');
+        }
+    }
 
     // Step 1: Verify Issue
     document.getElementById('btn-submit-verify')?.addEventListener('click', async () => {
@@ -1273,6 +1361,184 @@ function initDiagnosticModal() {
         }
     });
 }
+
+// ================= WORK ORDER PDF DOWNLOAD =================
+document.getElementById('btn-download-work-order')?.addEventListener('click', () => {
+    if (!activeIssueId) {
+        alert('No active issue selected.');
+        return;
+    }
+    const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
+    // Download directly from API
+    window.open(`${API_BASE_URL}/issues/${activeIssueId}/work-order`, '_blank');
+});
+
+// ================= DASHCAM EDGE ML CONTROLLER =================
+function initDashcamController() {
+    const runBtn = document.getElementById('btn-run-dashcam-analysis');
+    const demoBtn = document.getElementById('btn-demo-dashcam-stream');
+    const fileInput = document.getElementById('dashcam-file-input');
+
+    runBtn?.addEventListener('click', async () => {
+        const file = fileInput?.files?.[0];
+        await processDashcamAnalysis(file);
+    });
+
+    demoBtn?.addEventListener('click', async () => {
+        await processDashcamAnalysis(null, true);
+    });
+}
+
+async function processDashcamAnalysis(file, isDemo = false) {
+    const listEl = document.getElementById('dashcam-detections-list');
+    const countEl = document.getElementById('dashcam-detection-count');
+    const chipsEl = document.getElementById('dashcam-summary-chips');
+
+    listEl.innerHTML = '<div class="text-center p-4"><span class="pulse-dot"></span> Running Edge ML Vision Inference on Video Frames...</div>';
+
+    const formData = new FormData();
+    if (file) {
+        formData.append('video_file', file);
+    } else {
+        // Create dummy video blob for demonstration
+        const dummyBlob = new Blob(['simulated-dashcam-stream-bytes'], { type: 'video/mp4' });
+        formData.append('video_file', dummyBlob, 'dashcam_patrol_stream.mp4');
+    }
+
+    formData.append('duration_sec', document.getElementById('dashcam-duration')?.value || '10');
+    formData.append('sample_interval_sec', document.getElementById('dashcam-interval')?.value || '1.0');
+
+    const startCoords = document.getElementById('dashcam-start-coords')?.value?.split(',') || ['12.9716', '77.5946'];
+    const endCoords = document.getElementById('dashcam-end-coords')?.value?.split(',') || ['12.9780', '77.6020'];
+
+    formData.append('start_lat', parseFloat(startCoords[0]) || 12.9716);
+    formData.append('start_lng', parseFloat(startCoords[1]) || 77.5946);
+    formData.append('end_lat', parseFloat(endCoords[0]) || 12.9780);
+    formData.append('end_lng', parseFloat(endCoords[1]) || 77.6020);
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/stream/analyze`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: formData
+        });
+
+        if (!res.ok) {
+            listEl.innerHTML = '<div class="alert alert-danger">Dashcam stream analysis failed. Please verify authority credentials.</div>';
+            return;
+        }
+
+        const data = await res.json();
+        countEl.textContent = data.detections_count;
+
+        // Render Summary Chips
+        chipsEl.innerHTML = Object.entries(data.summary_by_category || {})
+            .map(([cat, cnt]) => `<span class="summary-chip">${cat}: <b>${cnt}</b></span>`)
+            .join('');
+
+        if (!data.hazards || data.hazards.length === 0) {
+            listEl.innerHTML = '<div class="empty-state-card"><p>No road safety hazards detected in video clip.</p></div>';
+            return;
+        }
+
+        listEl.innerHTML = data.hazards.map((h, idx) => `
+            <div class="dashcam-item-card" id="dashcam-item-${idx}">
+                <div class="dashcam-thumb-wrap">
+                    <img src="${h.snapshot_base64 || 'https://img.icons8.com/fluency/96/road.png'}" alt="${escapeHtml(h.category)}">
+                </div>
+                <div class="dashcam-item-info">
+                    <div class="dashcam-item-meta">
+                        <span class="dashcam-time-tag">⏱️ ${h.timestamp_sec.toFixed(1)}s</span>
+                        <span class="badge ${getSeverityBadgeClass(h.severity)}">${h.severity}</span>
+                        <span class="badge badge-indigo">${h.category}</span>
+                    </div>
+                    <div class="text-sm font-bold">${escapeHtml(h.category)} Hazard Detected</div>
+                    <div class="text-xs text-muted">
+                        Confidence: ${(h.confidence * 100).toFixed(1)}% | Coordinates: ${h.estimated_lat?.toFixed(5)}, ${h.estimated_lng?.toFixed(5)}
+                    </div>
+                </div>
+                <div class="dashcam-item-actions">
+                    <button class="btn-convert-report" onclick="convertStreamHazard(${idx}, ${JSON.stringify(h).replace(/"/g, '&quot;')})">
+                        + Log Report
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        listEl.innerHTML = '<div class="alert alert-danger">Network error during stream processing.</div>';
+    }
+}
+
+// Convert Stream Detection to Civic Report
+window.convertStreamHazard = async function(idx, hazardData) {
+    const itemCard = document.getElementById(`dashcam-item-${idx}`);
+    if (itemCard) itemCard.style.opacity = '0.5';
+
+    try {
+        const payload = {
+            category: hazardData.category,
+            severity: hazardData.severity || 'HIGH',
+            title: `Dashcam Detected ${hazardData.category} at ${hazardData.timestamp_sec}s`,
+            description: `Automatic hazard detection on live video stream with ${(hazardData.confidence * 100).toFixed(1)}% confidence.`,
+            latitude: hazardData.estimated_lat || 12.9716,
+            longitude: hazardData.estimated_lng || 77.5946,
+            timestamp_sec: hazardData.timestamp_sec,
+            snapshot_base64: hazardData.snapshot_base64
+        };
+
+        const res = await fetch(`${API_BASE_URL}/stream/convert-to-report`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            const rep = await res.json();
+            alert(`Report #${rep.id.slice(0, 8)} successfully generated and merged with canonical issue #${rep.issue_id?.slice(0, 8) || 'Created'}!`);
+            if (itemCard) {
+                itemCard.innerHTML = `<div class="p-2 text-green font-bold">✔️ Converted to Report #${rep.id.slice(0, 8)}</div>`;
+            }
+            fetchIssues();
+            fetchExecutiveKPIs();
+        } else {
+            alert('Failed to convert stream hazard to report.');
+            if (itemCard) itemCard.style.opacity = '1';
+        }
+    } catch (e) {
+        alert('Operation failed.');
+        if (itemCard) itemCard.style.opacity = '1';
+    }
+};
+
+// ================= PWA SERVICE WORKER REGISTRATION =================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('[PWA] ServiceWorker registered with scope:', reg.scope))
+            .catch(err => console.warn('[PWA] ServiceWorker registration failed:', err));
+    });
+}
+
+// Global manual sync trigger for offline queue
+window.triggerManualSync = async function() {
+    if (typeof syncOfflineDrafts === 'function') {
+        const res = await syncOfflineDrafts(API_BASE_URL, getAuthHeaders());
+        if (res.synced > 0) {
+            alert(`Offline Sync Complete: ${res.synced} draft reports uploaded to server.`);
+            fetchIssues();
+            fetchExecutiveKPIs();
+        }
+    }
+};
+
+// Initialize Dashcam Controller
+document.addEventListener('DOMContentLoaded', () => {
+    initDashcamController();
+});
 
 function escapeHtml(str) {
     if (!str) return '';

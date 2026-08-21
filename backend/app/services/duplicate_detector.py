@@ -133,18 +133,24 @@ def calculate_duplicate_score(
     # 4. Image Similarity
     img_score = calculate_image_similarity(report_image_hash, issue_image_hash)
 
+    # 5. NLP Semantic Description Similarity
+    from app.services.nlp_service import calculate_text_similarity
+    text_score = calculate_text_similarity(report.description or "", candidate_issue.description or candidate_issue.title or "")
+
     # Dynamic Weight Allocation
     w_loc = settings.WEIGHT_LOCATION
     w_cat = settings.WEIGHT_CATEGORY
     w_time = settings.WEIGHT_TIME
     w_img = settings.WEIGHT_IMAGE if img_score is not None else 0.0
+    w_text = 0.10 if text_score > 0.0 else 0.0
 
-    total_weight = w_loc + w_cat + w_time + w_img
+    total_weight = w_loc + w_cat + w_time + w_img + w_text
     composite_score = (
         (loc_score * w_loc)
         + (cat_score * w_cat)
         + (time_score * w_time)
         + ((img_score or 0.0) * w_img)
+        + (text_score * w_text)
     ) / total_weight
 
     score_breakdown = {
@@ -153,6 +159,7 @@ def calculate_duplicate_score(
         "category_score": cat_score,
         "time_score": time_score,
         "image_score": img_score,
+        "text_similarity_score": text_score,
         "composite_score": round(composite_score, 4)
     }
 

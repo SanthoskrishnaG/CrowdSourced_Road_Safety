@@ -101,7 +101,8 @@ def notify_issue_status_changed(
     previous_status: str,
     new_status: str,
     comment: Optional[str] = None,
-    citizen_emails: Optional[List[str]] = None
+    citizen_emails: Optional[List[str]] = None,
+    citizen_phones: Optional[List[str]] = None
 ):
     """
     Dispatches notifications to citizen reporters and authorities when status changes (e.g. IN_PROGRESS, FIXED, CLOSED).
@@ -117,3 +118,42 @@ def notify_issue_status_changed(
     )
     for email in (citizen_emails or ["reporter@citizen.gov"]):
         send_email_notification(email, subject, body)
+
+    # Dispatch SMS to citizen phone numbers
+    if citizen_phones:
+        sms_body = f"RoadOps Alert: Your reported issue '{issue_title}' is now {new_status}. Remarks: {comment or 'Updated'}. Ref: {str(issue_id)[:8]}"
+        for phone in citizen_phones:
+            send_sms_notification(phone, sms_body)
+
+
+# ==============================================================================
+# Twilio Citizen SMS Alerts Integration
+# ==============================================================================
+
+def send_sms_notification(to_phone: str, message_body: str) -> bool:
+    """
+    Sends an SMS notification via Twilio API,
+    or logs formatted SMS in mock mode when Twilio credentials are not configured.
+    """
+    if not to_phone:
+        return False
+
+    if not settings.SMS_ENABLED or not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
+        logger.info(
+            f"[MOCK TWILIO SMS DISPATCH] To: {to_phone} | From: {settings.TWILIO_FROM_NUMBER or '+15550199999'} | Message: {message_body}"
+        )
+        return True
+
+    try:
+        from twilio.rest import Client
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        message = client.messages.create(
+            body=message_body,
+            from_=settings.TWILIO_FROM_NUMBER,
+            to=to_phone
+        )
+        logger.info(f"Successfully sent Twilio SMS to {to_phone}, SID: {message.sid}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to dispatch Twilio SMS to {to_phone}: {str(e)}")
+        return False

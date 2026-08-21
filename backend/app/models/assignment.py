@@ -1,9 +1,10 @@
 import uuid
 import enum
+from typing import Optional
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, Enum, DateTime, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
 
@@ -23,41 +24,41 @@ class IssueAssignment(Base):
     """
     __tablename__ = "issue_assignments"
 
-    id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
         index=True
     )
-    issue_id = Column(
+    issue_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("issues.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
-    department = Column(
+    department: Mapped[AuthorityDepartment] = mapped_column(
         Enum(AuthorityDepartment),
         nullable=False
     )
-    assigned_to_user_id = Column(
+    assigned_to_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True
     )
-    assigned_by_user_id = Column(
+    assigned_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True
     )
-    assigned_at = Column(
+    assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
-    notes = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Relationships
-    issue = relationship("Issue", back_populates="assignments")
-    assigned_to = relationship("User", foreign_keys=[assigned_to_user_id])
-    assigned_by = relationship("User", foreign_keys=[assigned_by_user_id])
+    issue: Mapped["Issue"] = relationship("Issue", back_populates="assignments")
+    assigned_to: Mapped[Optional["User"]] = relationship("User", foreign_keys=[assigned_to_user_id])
+    assigned_by: Mapped[Optional["User"]] = relationship("User", foreign_keys=[assigned_by_user_id])

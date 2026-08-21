@@ -15,6 +15,7 @@ class ReportBase(BaseModel):
     longitude: float = Field(..., ge=-180, le=180, description="Longitude must be between -180 and 180.")
     address: Optional[str] = Field(None, max_length=255)
     location_accuracy: Optional[float] = Field(None, ge=0, description="Location accuracy in meters")
+    phone_number: Optional[str] = Field(None, max_length=25, description="Citizen phone number for SMS status alerts")
 
 
 class ReportCreate(ReportBase):
@@ -30,6 +31,7 @@ class ReportUpdate(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     address: Optional[str] = Field(None, max_length=255)
     location_accuracy: Optional[float] = Field(None, ge=0)
+    phone_number: Optional[str] = Field(None, max_length=25)
     status: Optional[ReportStatus] = None
 
 
