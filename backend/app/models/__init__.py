@@ -1,8 +1,10 @@
 from app.models.user import User, UserRole
-from app.models.report import RoadReport, ReportCategory, ReportSeverity, ReportStatus
+from app.models.report import ReportCategory, ReportSeverity, ReportStatus, RoadReport
 from app.models.image import ReportImage
-from app.models.issue import Issue
+from app.models.issue import Issue, PriorityLevel, LocationZone, TrafficDensity
 from app.models.classification import ImageClassification
+from app.models.assignment import AuthorityDepartment, IssueAssignment
+from app.models.history import IssueStatusHistory
 
 __all__ = [
     "User",
@@ -13,5 +15,11 @@ __all__ = [
     "ReportStatus",
     "ReportImage",
     "Issue",
+    "PriorityLevel",
+    "LocationZone",
+    "TrafficDensity",
     "ImageClassification",
+    "AuthorityDepartment",
+    "IssueAssignment",
+    "IssueStatusHistory",
 ]

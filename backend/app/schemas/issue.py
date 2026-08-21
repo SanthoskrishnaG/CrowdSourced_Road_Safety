@@ -3,7 +3,10 @@ from uuid import UUID
 from datetime import datetime
 from typing import Optional, List
 from app.models.report import ReportCategory, ReportSeverity, ReportStatus
+from app.models.issue import PriorityLevel, LocationZone, TrafficDensity
+from app.models.assignment import AuthorityDepartment
 from app.schemas.report import PaginationMetadata
+from app.schemas.workflow import IssueAssignmentResponse, IssueStatusHistoryResponse, PriorityBreakdownResponse
 
 
 class IssueReportSummary(BaseModel):
@@ -31,7 +34,11 @@ class IssueResponse(BaseModel):
     severity: ReportSeverity
     status: ReportStatus
     priority_score: float
+    priority_level: PriorityLevel
     report_count: int
+    traffic_density: TrafficDensity
+    location_zone: LocationZone
+    assigned_department: Optional[AuthorityDepartment] = None
     created_at: datetime
     updated_at: datetime
 
@@ -40,6 +47,9 @@ class IssueResponse(BaseModel):
 
 class IssueDetailResponse(IssueResponse):
     reports: List[IssueReportSummary] = []
+    assignments: List[IssueAssignmentResponse] = []
+    status_history: List[IssueStatusHistoryResponse] = []
+    priority_breakdown: Optional[PriorityBreakdownResponse] = None
 
 
 class IssuePaginationResponse(BaseModel):

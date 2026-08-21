@@ -213,6 +213,10 @@ def find_duplicate_issue(
     return None, max_score, best_breakdown
 
 
+from app.services.priority_engine import calculate_priority, TrafficDensityService
+from app.services.workflow_service import get_recommended_department
+
+
 def process_report_issue(db: Session, report: RoadReport) -> Issue:
     """
     Executes the duplicate detection workflow upon report creation:
@@ -232,10 +236,37 @@ def process_report_issue(db: Session, report: RoadReport) -> Issue:
         if SEVERITY_ORDER.get(report.severity, 0) > SEVERITY_ORDER.get(matched_issue.severity, 0):
             matched_issue.severity = report.severity
 
+        # Recalculate priority score and priority level with updated report count & severity
+        p_score, p_level, _ = calculate_priority(
+            severity=matched_issue.severity,
+            report_count=matched_issue.report_count,
+            traffic_density=matched_issue.traffic_density,
+            location_zone=matched_issue.location_zone,
+            created_at=matched_issue.created_at,
+            current_status=matched_issue.status
+        )
+        matched_issue.priority_score = p_score
+        matched_issue.priority_level = p_level
+
         db.commit()
         db.refresh(matched_issue)
         return matched_issue
     else:
+        # Determine initial traffic density and default department
+        traffic_density = TrafficDensityService.get_traffic_density(
+            report.latitude, report.longitude, report.address
+        )
+        rec_department = get_recommended_department(report.category)
+
+        # Calculate initial priority score and level
+        p_score, p_level, _ = calculate_priority(
+            severity=report.severity,
+            report_count=1,
+            traffic_density=traffic_density,
+            created_at=datetime.now(timezone.utc),
+            current_status=ReportStatus.REPORTED
+        )
+
         # Create a new canonical issue
         new_issue = Issue(
             category=report.category,
@@ -247,7 +278,10 @@ def process_report_issue(db: Session, report: RoadReport) -> Issue:
             severity=report.severity,
             status=ReportStatus.REPORTED,
             report_count=1,
-            priority_score=0.0
+            priority_score=p_score,
+            priority_level=p_level,
+            traffic_density=traffic_density,
+            assigned_department=rec_department
         )
         db.add(new_issue)
         db.commit()
