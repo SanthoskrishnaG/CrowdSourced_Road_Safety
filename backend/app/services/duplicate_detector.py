@@ -297,3 +297,54 @@ def process_report_issue(db: Session, report: RoadReport) -> Issue:
         report.issue_id = new_issue.id
         db.commit()
         return new_issue
+
+
+def get_duplicate_candidates_for_report(db: Session, report: RoadReport) -> List[dict]:
+    """
+    Retrieves all candidate issues within search radius of a report,
+    calculating individual duplicate scores and match breakdowns.
+    """
+    lat_delta = (settings.DUPLICATE_DISTANCE_THRESHOLD_METERS / 111000.0) * 2.0
+    lon_delta = lat_delta / math.cos(math.radians(report.latitude)) if abs(report.latitude) < 89.0 else lat_delta
+
+    candidate_issues = (
+        db.query(Issue)
+        .filter(
+            Issue.latitude.between(report.latitude - lat_delta, report.latitude + lat_delta),
+            Issue.longitude.between(report.longitude - lon_delta, report.longitude + lon_delta)
+        )
+        .all()
+    )
+
+    report_img_hash = None
+    if report.images:
+        first_img_path = os.path.join(settings.UPLOAD_DIRECTORY, report.images[0].file_path.replace("uploads/", ""))
+        report_img_hash = calculate_dhash(first_img_path)
+
+    results = []
+    for issue in candidate_issues:
+        issue_img_hash = None
+        if issue.reports and issue.reports[0].images:
+            issue_img_path = os.path.join(settings.UPLOAD_DIRECTORY, issue.reports[0].images[0].file_path.replace("uploads/", ""))
+            issue_img_hash = calculate_dhash(issue_img_path)
+
+        score, breakdown = calculate_duplicate_score(report, issue, report_img_hash, issue_img_hash)
+        dist = haversine_distance(report.latitude, report.longitude, issue.latitude, issue.longitude)
+        
+        results.append({
+            "issue_id": issue.id,
+            "issue_title": issue.title,
+            "issue_category": issue.category,
+            "issue_severity": issue.severity,
+            "issue_status": issue.status,
+            "latitude": issue.latitude,
+            "longitude": issue.longitude,
+            "distance_meters": dist,
+            "duplicate_score": score,
+            "is_match": score >= settings.DUPLICATE_SCORE_THRESHOLD,
+            "score_breakdown": breakdown
+        })
+
+    results.sort(key=lambda x: x["duplicate_score"], reverse=True)
+    return results
+

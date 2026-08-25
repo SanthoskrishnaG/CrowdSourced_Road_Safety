@@ -237,3 +237,69 @@ def test_list_issues_endpoint(client, auth_headers):
     assert "metadata" in data
     assert len(data["items"]) >= 1
 
+
+def test_issue_reports_endpoint(client, auth_headers):
+    """
+    Tests GET /api/v1/issues/{id}/reports returns list of reports contributing to the issue.
+    """
+    # Create report
+    resp = client.post(
+        "/api/v1/reports",
+        json={
+            "category": "BLOCKED_ROAD",
+            "title": "Tree fallen across lane",
+            "description": "Large branch blocking right lane",
+            "severity": "HIGH",
+            "latitude": 13.0456,
+            "longitude": 80.2100
+        },
+        headers=auth_headers
+    )
+    assert resp.status_code == 201
+    report = resp.json()
+    issue_id = report["issue_id"]
+
+    # Get issue reports
+    reports_resp = client.get(f"/api/v1/issues/{issue_id}/reports", headers=auth_headers)
+    assert reports_resp.status_code == 200
+    reports = reports_resp.json()
+    assert isinstance(reports, list)
+    assert len(reports) >= 1
+    assert any(r["id"] == report["id"] for r in reports)
+
+
+def test_report_duplicate_candidates_endpoint(client, auth_headers):
+    """
+    Tests GET /api/v1/reports/{id}/duplicate-candidates returns candidate matches and scores.
+    """
+    # Create report 1
+    resp1 = client.post(
+        "/api/v1/reports",
+        json={
+            "category": "POTHOLE",
+            "title": "First Pothole Alert",
+            "description": "Large pothole in road",
+            "severity": "HIGH",
+            "latitude": 12.9800,
+            "longitude": 77.6000
+        },
+        headers=auth_headers
+    )
+    assert resp1.status_code == 201
+    report1 = resp1.json()
+
+    # Query duplicate candidates
+    cand_resp = client.get(f"/api/v1/reports/{report1['id']}/duplicate-candidates", headers=auth_headers)
+    assert cand_resp.status_code == 200
+    cand_data = cand_resp.json()
+    assert cand_data["report_id"] == report1["id"]
+    assert "threshold" in cand_data
+    assert "candidates" in cand_data
+    assert isinstance(cand_data["candidates"], list)
+    assert len(cand_data["candidates"]) >= 1
+    first_cand = cand_data["candidates"][0]
+    assert "duplicate_score" in first_cand
+    assert "is_match" in first_cand
+    assert "distance_meters" in first_cand
+
+
