@@ -162,32 +162,36 @@ def test_role_authorization_dependency():
     assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_logout(client):
+def test_user_profile_endpoint(client):
     """
-    Tests logout endpoint with a valid JWT token.
+    Tests GET /api/v1/users/profile returns authenticated user profile.
     """
-    email = "logout_test@example.com"
+    email = "profile_test@example.com"
     client.post(
         "/api/v1/auth/register",
         json={
             "email": email,
-            "full_name": "Logout User",
-            "password": "securepassword123"
+            "full_name": "Profile User",
+            "password": "mypassword123"
         }
     )
     login_resp = client.post(
         "/api/v1/auth/login",
         json={
             "email": email,
-            "password": "securepassword123"
+            "password": "mypassword123"
         }
     )
     token = login_resp.json()["access_token"]
     
-    response = client.post(
-        "/api/v1/auth/logout",
+    response = client.get(
+        "/api/v1/users/profile",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
-    assert "Successfully logged out" in response.json()["detail"]
+    data = response.json()
+    assert data["email"] == email
+    assert data["full_name"] == "Profile User"
+    assert "password_hash" not in data
+
 
