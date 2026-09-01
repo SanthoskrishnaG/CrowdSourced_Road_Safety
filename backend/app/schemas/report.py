@@ -39,6 +39,7 @@ class ReportResponse(ReportBase):
     id: UUID
     reporter_id: UUID
     issue_id: Optional[UUID] = None
+    road_segment_id: Optional[UUID] = None
     status: ReportStatus
     created_at: datetime
     updated_at: datetime

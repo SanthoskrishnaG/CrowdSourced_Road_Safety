@@ -5,6 +5,7 @@ from app.models.issue import Issue, PriorityLevel, LocationZone, TrafficDensity
 from app.models.classification import ImageClassification
 from app.models.assignment import AuthorityDepartment, IssueAssignment
 from app.models.history import IssueStatusHistory
+from app.models.road_segment import RoadSegment, RoadType, RoadImportance
 
 __all__ = [
     "User",
@@ -22,4 +23,7 @@ __all__ = [
     "AuthorityDepartment",
     "IssueAssignment",
     "IssueStatusHistory",
+    "RoadSegment",
+    "RoadType",
+    "RoadImportance",
 ]

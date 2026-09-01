@@ -102,6 +102,13 @@ class RoadReport(Base):
         index=True
     )
     issue: Mapped[Optional["Issue"]] = relationship("Issue", back_populates="reports")
+    road_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("road_segments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    road_segment: Mapped[Optional["RoadSegment"]] = relationship("RoadSegment", back_populates="reports")
     images: Mapped[List["ReportImage"]] = relationship(
         "ReportImage",
         back_populates="report",

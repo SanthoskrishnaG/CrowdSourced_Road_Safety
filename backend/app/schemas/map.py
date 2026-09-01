@@ -24,3 +24,24 @@ class ReportMapPoint(BaseModel):
     image_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RoadSegmentMapItem(BaseModel):
+    """
+    Lightweight map representation of a road segment with start/end coordinates,
+    corridor classification, and dynamic health status.
+    """
+    id: UUID
+    name: str
+    start_latitude: float
+    start_longitude: float
+    end_latitude: float
+    end_longitude: float
+    road_type: str
+    importance: str
+    active_issues_count: int = 0
+    health_score: float = 100.0
+    health_status: str = "EXCELLENT"  # EXCELLENT (green), GOOD (blue), FAIR (yellow), POOR (orange), CRITICAL (red)
+    risk_level: str = "LOW"
+
+    model_config = ConfigDict(from_attributes=True)

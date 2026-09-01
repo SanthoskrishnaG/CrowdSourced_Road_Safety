@@ -296,8 +296,17 @@ def process_report_issue(db: Session, report: RoadReport) -> Issue:
     """
     matched_issue, score, _ = find_duplicate_issue(db, report)
 
+    # Automatic Road Segment Association via geospatial projection
+    from app.utils.geo import find_nearest_road_segment
+    nearest_segment = find_nearest_road_segment(db, report.latitude, report.longitude)
+    if nearest_segment:
+        report.road_segment_id = nearest_segment.id
+
     if matched_issue:
         report.issue_id = matched_issue.id
+        if nearest_segment and not matched_issue.road_segment_id:
+            matched_issue.road_segment_id = nearest_segment.id
+
         matched_issue.report_count += 1
         matched_issue.updated_at = datetime.now(timezone.utc)
 
@@ -345,7 +354,8 @@ def process_report_issue(db: Session, report: RoadReport) -> Issue:
             priority_score=p_score,
             priority_level=p_level,
             traffic_density=traffic_density,
-            assigned_department=rec_department
+            assigned_department=rec_department,
+            road_segment_id=nearest_segment.id if nearest_segment else None
         )
         db.add(new_issue)
         db.commit()

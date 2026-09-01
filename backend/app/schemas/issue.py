@@ -40,6 +40,7 @@ class IssueResponse(BaseModel):
     traffic_density: TrafficDensity
     location_zone: LocationZone
     assigned_department: Optional[AuthorityDepartment] = None
+    road_segment_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 

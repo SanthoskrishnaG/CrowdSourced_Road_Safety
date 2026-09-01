@@ -15,15 +15,16 @@ ROAD_SEMANTIC_SYNONYMS = {
     "flooding": ["waterlogged", "submerged", "puddle", "overflow", "water", "inundated", "pooling"],
     "sign": ["signboard", "board", "marker", "signal", "traffic sign", "indicator"],
     # Scale & intensity
-    "large": ["deep", "huge", "massive", "big", "severe", "major", "giant", "extensive", "heavy"],
+    "large": ["deep", "huge", "massive", "big", "severe", "major", "giant", "extensive", "heavy", "critical"],
     "small": ["minor", "slight", "shallow", "tiny", "little"],
-    "danger": ["hazardous", "risk", "perilous", "unsafe", "critical", "severe", "emergency"],
+    "danger": ["hazardous", "risk", "perilous", "unsafe", "emergency"],
     # Landmarks & Locational terms
     "college": ["university", "campus", "institute", "school", "academy"],
     "gate": ["entrance", "entry", "exit", "portal", "gateway", "door"],
-    "near": ["outside", "adjacent", "opposite", "beside", "close", "along", "by", "around", "front"],
+    "near": ["outside", "adjacent", "opposite", "beside", "close", "along", "by", "around"],
     "junction": ["intersection", "crossroad", "crossing", "roundabout", "signal"],
-    "bridge": ["flyover", "overpass", "underpass", "culvert"],
+    "road": ["highway", "freeway", "expressway", "street", "avenue", "lane", "corridor", "drive", "way"],
+    "bridge": ["flyover", "overpass", "underpass", "culvert", "causeway"],
     "hospital": ["clinic", "medical center", "healthcare", "emergency room"]
 }
 
@@ -38,36 +39,49 @@ for canonical, synonyms in ROAD_SEMANTIC_SYNONYMS.items():
 def tokenize_text(text: str) -> List[str]:
     """
     Normalizes and tokenizes text into lowercased alphanumeric words.
-    Removes common English stop words while preserving core semantic tokens.
+    Removes standard functional English stop words while retaining domain nouns/adjectives.
     """
     if not text:
         return []
     
     stop_words = {
         "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "with",
-        "of", "by", "is", "was", "are", "were", "it", "this", "that", "there", "road",
-        "street", "very", "front", "back", "side", "here", "please", "kindly", "have"
+        "of", "by", "is", "was", "are", "were", "it", "this", "that", "there",
+        "very", "here", "please", "kindly", "have", "has", "had", "be", "been"
     }
     
     words = re.findall(r'\b[a-zA-Z0-9]{2,}\b', text.lower())
     return [w for w in words if w not in stop_words]
 
 
+import hashlib
+
+def stem_token(word: str) -> str:
+    """Simple rule-based suffix normalization for road infrastructure terms."""
+    w = word.lower()
+    for suffix in ["ing", "ed", "es", "ly", "tion", "s"]:
+        if len(w) > len(suffix) + 3 and w.endswith(suffix):
+            w = w[:-len(suffix)]
+            break
+    return w
+
+
 def get_semantic_tokens(text: str) -> List[str]:
     """
-    Tokenizes text and maps words to their canonical semantic concept clusters.
+    Tokenizes text, stems words, and maps them to canonical semantic concept clusters.
     """
     tokens = tokenize_text(text)
     semantic_tokens = []
     for t in tokens:
-        canonical = CONCEPT_LOOKUP.get(t, t)
+        stemmed = stem_token(t)
+        canonical = CONCEPT_LOOKUP.get(t, CONCEPT_LOOKUP.get(stemmed, stemmed))
         semantic_tokens.append(canonical)
     return semantic_tokens
 
 
 def generate_sentence_embedding(text: str, dim: int = 64) -> np.ndarray:
     """
-    Computes a dense semantic sentence embedding vector using combined
+    Computes a deterministic dense semantic sentence embedding vector using combined
     canonical concept projections and character 3-gram hashing.
     """
     tokens = get_semantic_tokens(text)
@@ -76,15 +90,17 @@ def generate_sentence_embedding(text: str, dim: int = 64) -> np.ndarray:
 
     vec = np.zeros(dim, dtype=np.float32)
     for token in tokens:
-        # Token-level hash projection
-        token_hash = hash(token) % dim
-        vec[token_hash] += 1.5
+        # Deterministic token-level hash projection
+        h = int(hashlib.md5(token.encode('utf-8')).hexdigest(), 16)
+        token_hash = h % dim
+        vec[token_hash] += 2.0
 
         # Subword 3-gram projections for spelling robustness
         padded = f"<{token}>"
         for i in range(len(padded) - 2):
             trigram = padded[i:i+3]
-            tri_hash = hash(trigram) % dim
+            tri_h = int(hashlib.md5(trigram.encode('utf-8')).hexdigest(), 16)
+            tri_hash = tri_h % dim
             vec[tri_hash] += 0.5
 
     # L2 normalize
@@ -123,15 +139,18 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
     # 1. Dense Sentence Embedding Similarity
     emb_sim = calculate_semantic_embedding_similarity(text1, text2)
 
-    # 2. Canonical Concept Overlap
-    c_tokens1 = set(get_semantic_tokens(text1))
-    c_tokens2 = set(get_semantic_tokens(text2))
+    # 2. Canonical Concept Vector Cosine Similarity
+    c_tokens1 = get_semantic_tokens(text1)
+    c_tokens2 = get_semantic_tokens(text2)
     if c_tokens1 and c_tokens2:
-        c_intersect = len(c_tokens1.intersection(c_tokens2))
-        c_union = len(c_tokens1.union(c_tokens2))
-        concept_sim = c_intersect / c_union if c_union > 0 else 0.0
+        vec1 = Counter(c_tokens1)
+        vec2 = Counter(c_tokens2)
+        dot = sum(vec1[w] * vec2[w] for w in set(c_tokens1).intersection(set(c_tokens2)))
+        mag1 = math.sqrt(sum(v ** 2 for v in vec1.values()))
+        mag2 = math.sqrt(sum(v ** 2 for v in vec2.values()))
+        concept_cosine = (dot / (mag1 * mag2)) if (mag1 * mag2) > 0 else 0.0
     else:
-        concept_sim = 0.0
+        concept_cosine = 0.0
 
     # 3. Exact Token Jaccard Overlap
     raw_tokens1 = set(tokenize_text(text1))
@@ -143,8 +162,8 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
     else:
         jaccard_sim = 0.0
 
-    # Hybrid blend
-    composite = (0.60 * emb_sim) + (0.25 * concept_sim) + (0.15 * jaccard_sim)
+    # Hybrid blend: 50% Embedding Cosine, 40% Concept Cosine, 10% Raw Token Overlap
+    composite = (0.50 * emb_sim) + (0.40 * concept_cosine) + (0.10 * jaccard_sim)
     return round(float(composite), 4)
 
 

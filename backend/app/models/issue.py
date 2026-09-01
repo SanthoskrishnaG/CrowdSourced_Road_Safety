@@ -2,7 +2,7 @@ import uuid
 import enum
 from typing import Optional, List
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Integer, Enum, DateTime, Text, Index
+from sqlalchemy import Column, String, Float, Integer, Enum, DateTime, Text, Index, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
@@ -92,6 +92,12 @@ class Issue(Base):
         nullable=True,
         index=True
     )
+    road_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("road_segments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -107,6 +113,7 @@ class Issue(Base):
     )
 
     # Relationships
+    road_segment: Mapped[Optional["RoadSegment"]] = relationship("RoadSegment", back_populates="issues")
     reports: Mapped[List["RoadReport"]] = relationship(
         "RoadReport",
         back_populates="issue",
