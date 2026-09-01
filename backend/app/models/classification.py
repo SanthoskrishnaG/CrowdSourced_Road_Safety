@@ -6,13 +6,14 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.report import ReportCategory
+from app.models.report import ReportCategory, ReportSeverity
 
 
 class ImageClassification(Base):
     """
-    Tracks AI machine learning image classification results, confidence scores,
-    and human-in-the-loop overrides (citizen suggestion vs AI vs authority verification).
+    Tracks AI machine learning image classification results, severity estimation,
+    image quality diagnostics, confidence scores, and human-in-the-loop overrides
+    (citizen suggestion vs AI vs authority verification).
     """
     __tablename__ = "image_classifications"
 
@@ -29,6 +30,7 @@ class ImageClassification(Base):
         unique=True,
         index=True
     )
+    # AI Category Classification
     predicted_category: Mapped[ReportCategory] = mapped_column(
         Enum(ReportCategory),
         nullable=False
@@ -47,6 +49,58 @@ class ImageClassification(Base):
         nullable=True
     )
 
+    # AI Severity Estimation (Phase 8)
+    predicted_severity: Mapped[Optional[ReportSeverity]] = mapped_column(
+        Enum(ReportSeverity),
+        nullable=True,
+        default=ReportSeverity.MEDIUM
+    )
+    severity_confidence: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        default=0.85
+    )
+    severity_model_version: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        default="road-severity-v1.0",
+        nullable=True
+    )
+    severity_probabilities_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    # Image Quality Diagnostics (Phase 8)
+    quality_score: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        default=85.0
+    )
+    quality_blur_score: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True
+    )
+    quality_brightness_score: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True
+    )
+    quality_contrast_score: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True
+    )
+    quality_resolution_score: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True
+    )
+    quality_issues_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+    quality_recommendation: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+
     # Human Override & Verification Fields
     user_suggested_category: Mapped[Optional[ReportCategory]] = mapped_column(
         Enum(ReportCategory),
@@ -56,7 +110,20 @@ class ImageClassification(Base):
         Enum(ReportCategory),
         nullable=True
     )
+    user_suggested_severity: Mapped[Optional[ReportSeverity]] = mapped_column(
+        Enum(ReportSeverity),
+        nullable=True
+    )
+    authority_verified_severity: Mapped[Optional[ReportSeverity]] = mapped_column(
+        Enum(ReportSeverity),
+        nullable=True
+    )
     is_corrected: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+    is_severity_corrected: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False
