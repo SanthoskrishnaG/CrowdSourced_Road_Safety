@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_FROM_NUMBER: Optional[str] = None
 
+    # Weather Intelligence Service Configuration
+    WEATHER_PROVIDER: str = "mock"  # "mock", "openweather", "weatherapi"
+    OPENWEATHERMAP_API_KEY: Optional[str] = None
+    WEATHERAPI_KEY: Optional[str] = None
+    WEATHER_API_KEY: Optional[str] = None
+
     @field_validator("ENVIRONMENT")
     @classmethod
     def validate_environment(cls, v: str) -> str:

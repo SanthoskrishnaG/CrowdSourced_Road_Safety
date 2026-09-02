@@ -88,20 +88,48 @@ def log_status_history(
     return history_entry
 
 
-def update_issue_priority(issue: Issue):
+def update_issue_priority(
+    issue: Issue,
+    db: Optional[Session] = None,
+    trigger_event: str = "WORKFLOW_UPDATE",
+    road_health_score: Optional[float] = None,
+    predicted_risk_score: Optional[float] = None
+):
     """
     Recalculates and sets priority score and priority level on an issue.
+    Optionally records a PriorityHistory audit snapshot if database session is provided.
     """
-    score, level, _ = calculate_priority(
+    prev_score = issue.priority_score
+    prev_level = issue.priority_level
+
+    score, level, breakdown = calculate_priority(
         severity=issue.severity,
         report_count=issue.report_count,
         traffic_density=issue.traffic_density,
         location_zone=issue.location_zone,
         created_at=issue.created_at,
-        current_status=issue.status
+        current_status=issue.status,
+        road_health_score=road_health_score,
+        predicted_risk_score=predicted_risk_score,
+        confirmations_count=getattr(issue, "confirmations_count", 0)
     )
     issue.priority_score = score
     issue.priority_level = level
+
+    if db is not None:
+        import json
+        from app.models.priority_history import PriorityHistory
+        history_entry = PriorityHistory(
+            issue_id=issue.id,
+            previous_score=prev_score,
+            new_score=score,
+            previous_level=prev_level,
+            new_level=level,
+            trigger_event=trigger_event,
+            factor_breakdown=json.dumps(breakdown)
+        )
+        db.add(history_entry)
+
 
 
 def verify_issue(
@@ -302,8 +330,9 @@ def citizen_verify_issue(
 
     # If reopened, boost priority
     if new_status == ReportStatus.REOPENED:
-        issue.priority_score = min(100.0, issue.priority_score + 20.0)
+        issue.priority_score = min(100.0, max(75.0, issue.priority_score + 25.0))
         issue.priority_level = PriorityLevel.CRITICAL if issue.priority_score >= 75.0 else PriorityLevel.HIGH
+
 
     log_status_history(
         db=db,

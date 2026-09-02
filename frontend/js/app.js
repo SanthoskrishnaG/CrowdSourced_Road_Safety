@@ -633,7 +633,9 @@ async function loadAnalyticsHub() {
     fetchTrendChartData('day');
     loadDetailedBreakdowns();
     loadGeographicHotspots();
+    loadWeatherCorrelationAnalytics();
 }
+
 
 async function fetchTrendChartData(interval = 'day') {
     try {
@@ -1007,33 +1009,69 @@ function populateIssueModalDetails(issue) {
     document.getElementById('modal-issue-coords').textContent = `${issue.latitude.toFixed(5)}, ${issue.longitude.toFixed(5)}`;
     document.getElementById('modal-report-count').textContent = issue.reports?.length || 1;
 
-    // Priority Breakdown Bars
+    // Phase 14: 9-Factor Priority Breakdown & Explainability
     const barsContainer = document.getElementById('modal-priority-bars');
     if (barsContainer && issue.priority_breakdown) {
         const bd = issue.priority_breakdown;
-        barsContainer.innerHTML = `
-            <div class="breakdown-row">
-                <span>Severity Factor:</span>
-                <div class="breakdown-bar-bg"><div class="breakdown-bar-fill" style="width: ${(bd.severity_score / 40) * 100}%"></div></div>
-                <span>${bd.severity_score.toFixed(1)} pts</span>
+        const factors = bd.factors || [
+            { factor_name: 'Severity', earned_points: bd.severity_score, max_points: 25.0, percentage: (bd.severity_score / 25.0) * 100 },
+            { factor_name: 'Independent Reports', earned_points: bd.report_count_score, max_points: 15.0, percentage: (bd.report_count_score / 15.0) * 100 },
+            { factor_name: 'Road Health Degradation', earned_points: bd.road_health_score || 0.0, max_points: 15.0, percentage: ((bd.road_health_score || 0) / 15.0) * 100 },
+            { factor_name: 'Traffic Importance', earned_points: bd.traffic_density_score, max_points: 10.0, percentage: (bd.traffic_density_score / 10.0) * 100 },
+            { factor_name: 'Location Zone', earned_points: bd.location_zone_score, max_points: 10.0, percentage: (bd.location_zone_score / 10.0) * 100 },
+            { factor_name: 'Time Unresolved (Aging)', earned_points: bd.aging_score, max_points: 10.0, percentage: (bd.aging_score / 10.0) * 100 },
+            { factor_name: 'Predicted ML Risk', earned_points: bd.predicted_risk_score || 0.0, max_points: 10.0, percentage: ((bd.predicted_risk_score || 0) / 10.0) * 100 },
+            { factor_name: 'Weather Conditions', earned_points: bd.weather_condition_score || 0.0, max_points: 5.0, percentage: ((bd.weather_condition_score || 0) / 5.0) * 100 },
+            { factor_name: 'Citizen Confirmations', earned_points: bd.citizen_confirmations_score || 0.0, max_points: 5.0, percentage: ((bd.citizen_confirmations_score || 0) / 5.0) * 100 },
+        ];
+
+        let html = `
+            <div class="priority-header-flex">
+                <span class="text-xs text-muted">9-Factor Normalized Priority (0–100)</span>
+                <button class="btn-recalc-priority" onclick="recalculateActiveIssuePriority('${issue.id}')">
+                    🔄 Recalculate Score
+                </button>
             </div>
-            <div class="breakdown-row">
-                <span>Citizen Reports:</span>
-                <div class="breakdown-bar-bg"><div class="breakdown-bar-fill" style="width: ${(bd.report_count_score / 25) * 100}%"></div></div>
-                <span>${bd.report_count_score.toFixed(1)} pts</span>
-            </div>
-            <div class="breakdown-row">
-                <span>Traffic / Zone:</span>
-                <div class="breakdown-bar-bg"><div class="breakdown-bar-fill" style="width: ${((bd.traffic_density_score + bd.location_zone_score) / 25) * 100}%"></div></div>
-                <span>${(bd.traffic_density_score + bd.location_zone_score).toFixed(1)} pts</span>
-            </div>
-            <div class="breakdown-row">
-                <span>Aging (${bd.aging_days.toFixed(1)} days):</span>
-                <div class="breakdown-bar-bg"><div class="breakdown-bar-fill" style="width: ${(bd.aging_score / 15) * 100}%"></div></div>
-                <span>${bd.aging_score.toFixed(1)} pts</span>
+            <div class="priority-9factor-list">
+        `;
+
+        factors.forEach(f => {
+            const pct = Math.min(100, Math.max(0, f.percentage || (f.earned_points / f.max_points * 100)));
+            html += `
+                <div class="p-factor-row">
+                    <span class="p-factor-name">${escapeHtml(f.factor_name)}</span>
+                    <div class="p-factor-bar-track">
+                        <div class="p-factor-bar-fill" style="width: ${pct}%;"></div>
+                    </div>
+                    <span class="p-factor-pts">${f.earned_points.toFixed(1)} / ${f.max_points.toFixed(0)}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        if (bd.top_contributing_drivers && bd.top_contributing_drivers.length > 0) {
+            html += `
+                <div class="top-drivers-container">
+                    <div class="top-drivers-title">Top Score Drivers:</div>
+                    <div>
+                        ${bd.top_contributing_drivers.map(d => `<span class="top-driver-chip">⚡ ${escapeHtml(d)}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Priority History Container
+        html += `
+            <div class="priority-history-drawer">
+                <div class="top-drivers-title">📜 Priority Audit History:</div>
+                <div id="priority-history-items-list" class="text-xs text-muted">Loading audit history...</div>
             </div>
         `;
+
+        barsContainer.innerHTML = html;
+        loadIssuePriorityHistory(issue.id);
     }
+
 
     // Contributing reports
     const reportsList = document.getElementById('modal-reports-list');
@@ -1992,4 +2030,261 @@ window.openRoadDiagnosticsModal = async function(roadId) {
 function closeRoadDiagnosticsModal() {
     document.getElementById('modal-road-diagnostics-backdrop')?.classList.remove('open');
 }
+
+// ==========================================================================
+// PHASE 13: WEATHER INTELLIGENCE & CORRELATION DASHBOARD INTEGRATION
+// ==========================================================================
+
+async function loadWeatherCorrelationAnalytics() {
+    try {
+        const [currRes, corrRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/weather/current`, { headers: getAuthHeaders() }),
+            fetch(`${API_BASE_URL}/analytics/weather-correlations?days=30`, { headers: getAuthHeaders() })
+        ]);
+
+        if (currRes.ok) {
+            const curr = await currRes.json();
+            renderCurrentWeatherTelemetry(curr);
+        }
+
+        if (corrRes.ok) {
+            const corr = await corrRes.json();
+            renderWeatherCorrelationChart(corr);
+            renderWeatherCorrelationMetrics(corr);
+        }
+    } catch (err) {
+        console.error('Error loading weather correlation analytics:', err);
+    }
+}
+
+function renderCurrentWeatherTelemetry(curr) {
+    const badgeEl = document.getElementById('weather-provider-badge');
+    const stripEl = document.getElementById('weather-current-strip');
+    if (!badgeEl || !stripEl) return;
+
+    const isMock = curr.is_mock;
+    badgeEl.className = isMock ? 'badge badge-warning' : 'badge badge-success';
+    badgeEl.textContent = isMock ? `🟡 Provider: ${curr.provider_name} (Dev / Simulated)` : `🟢 Provider: ${curr.provider_name} (Live Telemetry)`;
+
+    stripEl.innerHTML = `
+        <div class="weather-stat-box">
+            <span class="weather-stat-lbl">Condition</span>
+            <span class="weather-stat-val">🌦️ ${escapeHtml(curr.condition)}</span>
+        </div>
+        <div class="weather-stat-box">
+            <span class="weather-stat-lbl">Temperature</span>
+            <span class="weather-stat-val">${curr.temperature_celsius.toFixed(1)}°C</span>
+        </div>
+        <div class="weather-stat-box">
+            <span class="weather-stat-lbl">Humidity</span>
+            <span class="weather-stat-val">${curr.humidity_percent.toFixed(0)}%</span>
+        </div>
+        <div class="weather-stat-box">
+            <span class="weather-stat-lbl">Precipitation Rate</span>
+            <span class="weather-stat-val">${curr.rainfall_mm_per_hour.toFixed(1)} mm/h</span>
+        </div>
+        <div class="weather-stat-box">
+            <span class="weather-stat-lbl">Severe Event</span>
+            <span class="weather-stat-val ${curr.is_severe ? 'text-critical' : 'text-success'}">${curr.is_severe ? '⚠️ ALERT ACTIVE' : '✅ NORMAL'}</span>
+        </div>
+    `;
+}
+
+function renderWeatherCorrelationChart(corrData) {
+    const ctx = document.getElementById('weatherCorrelationChart');
+    if (!ctx) return;
+
+    if (chartInstances['weatherCorrChart']) chartInstances['weatherCorrChart'].destroy();
+
+    const history = corrData.trend_history || [];
+    const labels = history.map(h => h.date);
+    const rainData = history.map(h => h.rainfall_mm);
+    const floodData = history.map(h => h.flooding_reports_count);
+    const potholeData = history.map(h => h.pothole_reports_count);
+    const damageData = history.map(h => h.road_damage_reports_count);
+
+    chartInstances['weatherCorrChart'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Daily Rainfall (mm)',
+                    data: rainData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    yAxisID: 'yRain',
+                    order: 3
+                },
+                {
+                    type: 'line',
+                    label: 'Flooding Hazards',
+                    data: floodData,
+                    borderColor: '#06b6d4',
+                    backgroundColor: 'transparent',
+                    tension: 0.2,
+                    yAxisID: 'yReports',
+                    order: 1
+                },
+                {
+                    type: 'line',
+                    label: 'Pothole Surges (Lagged)',
+                    data: potholeData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    tension: 0.2,
+                    yAxisID: 'yReports',
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: 'Road Damage Reports',
+                    data: damageData,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'transparent',
+                    borderDash: [4, 4],
+                    tension: 0.2,
+                    yAxisID: 'yReports',
+                    order: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { color: '#94a3b8' } },
+                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.95)' }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                yRain: {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: true, text: 'Rainfall (mm)', color: '#3b82f6' },
+                    ticks: { color: '#3b82f6' },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                yReports: {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: 'Hazard Incidents Reported', color: '#94a3b8' },
+                    ticks: { color: '#94a3b8', stepSize: 1 },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+function renderWeatherCorrelationMetrics(corrData) {
+    const metricsEl = document.getElementById('weather-correlations-metrics');
+    const advisoriesEl = document.getElementById('weather-advisories-list');
+    if (!metricsEl) return;
+
+    const correlations = corrData.category_correlations || [];
+    metricsEl.innerHTML = correlations.map(c => `
+        <div class="correlation-metric-card">
+            <div class="corr-card-head">
+                <span class="corr-cat-title">${escapeHtml(c.category_label || c.category)}</span>
+                <span class="badge ${c.pearson_r > 0.6 ? 'badge-danger' : c.pearson_r > 0.3 ? 'badge-warning' : 'badge-info'}">
+                    ${c.correlation_strength}
+                </span>
+            </div>
+            <div class="corr-numbers-row">
+                <div class="corr-num-pill">Pearson r: <strong>${c.pearson_r >= 0 ? '+' : ''}${c.pearson_r.toFixed(2)}</strong></div>
+                <div class="corr-num-pill">Rain Surge Multiplier: <strong>${c.rainfall_multiplier.toFixed(1)}x</strong></div>
+            </div>
+            <div class="text-xs text-muted">
+                ${c.lag_days_analyzed > 0 ? `⚡ Evaluated with ${c.lag_days_analyzed}-day delayed saturation lag.` : '⚡ Immediate direct rainfall correlation.'}
+            </div>
+        </div>
+    `).join('');
+
+    if (advisoriesEl && corrData.advisory_recommendations) {
+        advisoriesEl.innerHTML = `
+            <h5 class="text-xs text-primary mb-2 font-bold uppercase tracking-wide">🛡️ Proactive Weather-Hazard Directives:</h5>
+            ${corrData.advisory_recommendations.map(adv => `
+                <div class="advisory-item">
+                    <span>📌</span>
+                    <span>${escapeHtml(adv)}</span>
+                </div>
+            `).join('')}
+        `;
+    }
+}
+
+// ==========================================================================
+// PHASE 14: ADVANCED PRIORITY RECALCULATION & AUDIT HISTORY
+// ==========================================================================
+
+async function recalculateActiveIssuePriority(issueId) {
+    const btn = document.querySelector('.btn-recalc-priority');
+    if (btn) {
+        btn.textContent = '🔄 Recalculating...';
+        btn.disabled = true;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/issues/${issueId}/recalculate-priority`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+
+        if (!res.ok) {
+            alert('Failed to recalculate priority. Ensure you are logged in with authority permissions.');
+            return;
+        }
+
+        const updatedIssue = await res.json();
+        populateIssueModalDetails(updatedIssue);
+    } catch (err) {
+        console.error('Error recalculating priority:', err);
+    } finally {
+        if (btn) {
+            btn.textContent = '🔄 Recalculate Score';
+            btn.disabled = false;
+        }
+    }
+}
+
+async function loadIssuePriorityHistory(issueId) {
+    const container = document.getElementById('priority-history-items-list');
+    if (!container) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/issues/${issueId}/priority-history`, {
+            headers: getAuthHeaders()
+        });
+
+        if (!res.ok) {
+            container.innerHTML = '<div class="text-xs text-muted">Priority audit history unavailable.</div>';
+            return;
+        }
+
+        const history = await res.json();
+        if (history.length === 0) {
+            container.innerHTML = '<div class="text-xs text-muted">No historical priority recalculations recorded yet.</div>';
+            return;
+        }
+
+        container.innerHTML = history.map(h => `
+            <div class="priority-history-item">
+                <div class="ph-head">
+                    <span style="color: #818cf8;">${escapeHtml(h.trigger_event || 'SYSTEM_EVALUATION')}</span>
+                    <span>${h.previous_score.toFixed(1)} ➔ ${h.new_score.toFixed(1)} pts (${h.new_level})</span>
+                </div>
+                <div class="text-xs text-muted">
+                    ${new Date(h.created_at).toLocaleString()}
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = '<div class="text-xs text-muted">Failed to fetch priority history.</div>';
+    }
+}
+
 

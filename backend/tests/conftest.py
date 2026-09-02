@@ -59,3 +59,40 @@ def client(db_session) -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def citizen_token(client):
+    email = "citizen_conftest@example.com"
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "full_name": "Conftest Citizen", "password": "password123", "role": "CITIZEN"}
+    )
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": "password123"})
+    token = res.json().get("access_token", "")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def authority_token(client):
+    email = "authority_conftest@example.com"
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "full_name": "Conftest Authority", "password": "password123", "role": "AUTHORITY"}
+    )
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": "password123"})
+    token = res.json().get("access_token", "")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def admin_token(client):
+    email = "admin_conftest@example.com"
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "full_name": "Conftest Admin", "password": "password123", "role": "ADMIN"}
+    )
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": "password123"})
+    token = res.json().get("access_token", "")
+    return {"Authorization": f"Bearer {token}"}
+

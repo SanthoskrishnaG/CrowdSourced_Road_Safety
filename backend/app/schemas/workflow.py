@@ -1,6 +1,6 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.report import ReportStatus
@@ -55,9 +55,16 @@ class IssueStatusHistoryResponse(BaseModel):
 class PriorityBreakdownResponse(BaseModel):
     severity_score: float
     report_count_score: float
+    road_health_score: float = 0.0
     traffic_density_score: float
     location_zone_score: float
     aging_score: float
     aging_days: float
+    predicted_risk_score: float = 0.0
+    weather_condition_score: float = 0.0
+    citizen_confirmations_score: float = 0.0
     total_score: float
     priority_level: str
+    factors: Optional[List[Dict[str, Any]]] = None
+    top_contributing_drivers: Optional[List[str]] = None
+

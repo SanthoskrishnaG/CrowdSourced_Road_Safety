@@ -112,6 +112,8 @@ class Issue(Base):
         nullable=False
     )
 
+    confirmations_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     # Relationships
     road_segment: Mapped[Optional["RoadSegment"]] = relationship("RoadSegment", back_populates="issues")
     reports: Mapped[List["RoadReport"]] = relationship(
@@ -131,3 +133,10 @@ class Issue(Base):
         cascade="all, delete-orphan",
         order_by="asc(IssueStatusHistory.created_at)"
     )
+    priority_history: Mapped[List["PriorityHistory"]] = relationship(
+        "PriorityHistory",
+        back_populates="issue",
+        cascade="all, delete-orphan",
+        order_by="desc(PriorityHistory.created_at)"
+    )
+

@@ -444,7 +444,37 @@
                         <div class="loading-state">Calculating spatial density...</div>
                     </div>
                 </div>
+
+                <!-- Weather Intelligence & Hazard Correlation (Phase 13) -->
+                <div class="glass-card mt-4">
+                    <div class="card-head flex-wrap">
+                        <div>
+                            <h3>🌧️ Weather Intelligence & Infrastructure Correlation</h3>
+                            <p class="text-sm text-muted">Multi-factor statistical correlation between precipitation, storm events, and hazard surges</p>
+                        </div>
+                        <div class="weather-provenance-badge" id="weather-provenance-pill">
+                            <span class="badge badge-info" id="weather-provider-badge">🌦️ Loading Weather Telemetry...</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Weather Conditions Strip -->
+                    <div class="weather-current-strip mb-3" id="weather-current-strip">
+                        <div class="loading-state">Fetching local weather conditions...</div>
+                    </div>
+
+                    <!-- Dual-Axis Weather vs Problem Correlation Chart -->
+                    <div class="chart-canvas-wrap large mb-3">
+                        <canvas id="weatherCorrelationChart"></canvas>
+                    </div>
+
+                    <!-- Correlation Coefficients & Multipliers Grid -->
+                    <div class="weather-correlations-grid" id="weather-correlations-metrics"></div>
+
+                    <!-- Weather Advisory Recommendations -->
+                    <div class="weather-advisories-card mt-3" id="weather-advisories-list"></div>
+                </div>
             </section>
+
 
             <!-- ================= VIEW 4: GEOGRAPHIC HEATMAP ================= -->
             <section class="view-panel" id="view-heatmap">

@@ -6,6 +6,7 @@ from app.models.classification import ImageClassification
 from app.models.assignment import AuthorityDepartment, IssueAssignment
 from app.models.history import IssueStatusHistory
 from app.models.road_segment import RoadSegment, RoadType, RoadImportance
+from app.models.priority_history import PriorityHistory
 
 __all__ = [
     "User",
@@ -26,4 +27,6 @@ __all__ = [
     "RoadSegment",
     "RoadType",
     "RoadImportance",
+    "PriorityHistory",
 ]
+
