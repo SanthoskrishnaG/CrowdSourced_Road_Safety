@@ -35,58 +35,23 @@ IMPORTANCE_MULTIPLIERS = {
 
 def calculate_segment_health(
     segment: RoadSegment,
-    issues: List[Issue]
+    issues: List[Issue],
+    reports: Optional[List[RoadReport]] = None
 ) -> Tuple[float, str, str]:
     """
     Computes real-time dynamic road segment health index (0 to 100) and risk level
-    based on active open hazards, aggregate severity penalties, and corridor importance.
+    based on the normalized 6-factor Road Health Engine.
     - 100.0: Pristine / Hazard-free
     - Health status: EXCELLENT (85-100), GOOD (70-84), FAIR (50-69), POOR (30-49), CRITICAL (0-29)
     - Risk levels: LOW, MODERATE, HIGH, SEVERE
     """
-    active_issues = [
-        iss for iss in issues
-        if iss.status not in [ReportStatus.FIXED, ReportStatus.CLOSED, ReportStatus.REJECTED]
-    ]
-
-    if not active_issues:
-        return 100.0, "EXCELLENT", "LOW"
-
-    importance_mult = IMPORTANCE_MULTIPLIERS.get(segment.importance, 1.0)
-    total_penalty = 0.0
-
-    for iss in active_issues:
-        sev_weight = SEVERITY_WEIGHTS.get(iss.severity, 10.0)
-        # Factor in recurrence / multiple reports on same issue
-        report_boost = 1.0 + (math.log(iss.report_count + 1) * 0.3)
-        total_penalty += (sev_weight * report_boost)
-
-    total_penalty *= importance_mult
-
-    # Length normalization if segment is long (diminishes penalty per kilometer)
-    length_km = (segment.length_meters or 1000.0) / 1000.0
-    if length_km > 1.0:
-        total_penalty = total_penalty / (1.0 + math.log(length_km))
-
-    health_score = max(0.0, min(100.0, round(100.0 - total_penalty, 1)))
-
-    if health_score >= 85.0:
-        status = "EXCELLENT"
-        risk = "LOW"
-    elif health_score >= 70.0:
-        status = "GOOD"
-        risk = "MODERATE"
-    elif health_score >= 50.0:
-        status = "FAIR"
-        risk = "HIGH"
-    elif health_score >= 30.0:
-        status = "POOR"
-        risk = "HIGH"
-    else:
-        status = "CRITICAL"
-        risk = "SEVERE"
-
-    return health_score, status, risk
+    from app.services.road_health_service import calculate_detailed_road_health
+    score, status, risk, _, _ = calculate_detailed_road_health(
+        segment,
+        issues,
+        reports or (segment.reports if hasattr(segment, "reports") and segment.reports else [])
+    )
+    return score, status, risk
 
 
 def build_segment_response(db: Session, segment: RoadSegment) -> RoadSegmentResponse:

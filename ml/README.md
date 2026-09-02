@@ -33,15 +33,23 @@ ml/
 │   ├── mobilenet.py                # MobileNetV3 deep learning transfer learning adapter
 │   ├── download_weights.py         # Automated remote weights downloader & validator
 │   ├── weights/
-│   │   └── road_classifier_v1.joblib # Serialized model weights artifact
+│   │   ├── road_classifier_v1.joblib # Vision classifier weights
+│   │   └── road_risk_model_v1.joblib # Predictive road risk model artifact
 │   └── __init__.py
 ├── training/
-│   ├── train.py                    # Training pipeline with Stratified 5-Fold Cross Validation
-│   ├── evaluate.py                 # Evaluation benchmark (Precision, Recall, F1, Confusion Matrix)
+│   ├── train.py                    # Vision training pipeline
+│   ├── evaluate.py                 # Vision evaluation benchmark
 │   └── __init__.py
 ├── inference/
 │   ├── predictor.py                # Low-latency RoadHazardPredictor returning class + confidence
 │   ├── service.py                  # Singleton MLInferenceService for FastAPI backend
+│   └── __init__.py
+├── prediction/
+│   ├── dataset.py                  # Tabular dataset builder & physical degradation simulator
+│   ├── features.py                 # Scikit-learn ColumnTransformer for numerical & categorical
+│   ├── model.py                    # RoadRiskModel wrapper with explainability diagnostics
+│   ├── train.py                    # GradientBoostingRegressor training & 5-fold CV
+│   ├── evaluate.py                 # Evaluation benchmark (R², RMSE, MAE, Risk Level Confusion Matrix)
 │   └── __init__.py
 └── README.md                       # Subsystem documentation
 ```
@@ -114,6 +122,17 @@ python -m ml.training.evaluate --weights ml/models/weights/road_classifier_v1.jo
 ```powershell
 python -m ml.models.download_weights
 ```
+
+### Train Predictive Road Risk Model (Phase 12):
+```powershell
+python -m ml.prediction.train --save_path ml/models/weights/road_risk_model_v1.joblib
+```
+
+### Evaluate Predictive Road Risk Benchmark (Phase 12):
+```powershell
+python -m ml.prediction.evaluate --model_path ml/models/weights/road_risk_model_v1.joblib
+```
+
 
 ---
 

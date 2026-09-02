@@ -253,6 +253,8 @@ function refreshActiveView() {
         loadHeatmapView();
     } else if (currentView === 'public-map') {
         loadPublicMapView();
+    } else if (currentView === 'road-health') {
+        loadRoadHealthView();
     }
 }
 
@@ -1535,9 +1537,10 @@ window.triggerManualSync = async function() {
     }
 };
 
-// Initialize Dashcam Controller
+// Initialize Dashcam & Road Health Controllers
 document.addEventListener('DOMContentLoaded', () => {
     initDashcamController();
+    initRoadHealthController();
 });
 
 function escapeHtml(str) {
@@ -1546,3 +1549,447 @@ function escapeHtml(str) {
     div.textContent = str;
     return div.innerHTML;
 }
+
+// ==========================================================================
+// PHASE 11 & 12: ROAD HEALTH ENGINE & PREDICTIVE ROAD RISK CONTROLLER
+// ==========================================================================
+
+let roadHealthDistChart = null;
+let roadHealthTrendsChart = null;
+
+function initRoadHealthController() {
+    // Refresh Button
+    document.getElementById('btn-refresh-road-health')?.addEventListener('click', () => {
+        loadRoadHealthView();
+    });
+
+    // Predictive Risk Filters
+    document.getElementById('risk-filter-level')?.addEventListener('change', () => fetchRoadRiskPredictions());
+    document.getElementById('risk-filter-roadtype')?.addEventListener('change', () => fetchRoadRiskPredictions());
+    document.getElementById('risk-filter-sort')?.addEventListener('change', () => fetchRoadRiskPredictions());
+
+    // Diagnostics Modal Close
+    document.getElementById('btn-close-road-modal')?.addEventListener('click', closeRoadDiagnosticsModal);
+    document.getElementById('modal-road-diagnostics-backdrop')?.addEventListener('click', (e) => {
+        if (e.target.id === 'modal-road-diagnostics-backdrop') closeRoadDiagnosticsModal();
+    });
+}
+
+async function loadRoadHealthView() {
+    await Promise.all([
+        fetchRoadHealthAnalytics(),
+        fetchRoadRiskPredictions(),
+    ]);
+}
+
+async function fetchRoadHealthAnalytics() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/analytics/road-health?top_n=8`, {
+            headers: getAuthHeaders()
+        });
+
+        if (res.status === 401 || res.status === 403) {
+            console.warn('Authority privileges required for road health analytics.');
+            return;
+        }
+
+        if (!res.ok) throw new Error('Failed to load road health analytics');
+        const data = await res.json();
+
+        // 1. KPI Ribbon
+        const avgScore = data.summary?.average_health_score ?? 100;
+        document.getElementById('kpi-road-avg-health').textContent = `${avgScore} / 100`;
+        document.getElementById('kpi-road-total-segments').textContent = data.summary?.total_monitored_segments ?? 0;
+        document.getElementById('kpi-road-total-km').textContent = `${data.summary?.total_monitored_km ?? 0} km network`;
+        document.getElementById('kpi-road-critical-count').textContent = data.summary?.critical_segments_count ?? 0;
+
+        let statusText = 'Network Condition: Excellent';
+        if (avgScore < 50) statusText = 'Network Condition: Critical';
+        else if (avgScore < 70) statusText = 'Network Condition: Fair / Degraded';
+        else if (avgScore < 85) statusText = 'Network Condition: Good';
+        document.getElementById('kpi-road-network-status').textContent = statusText;
+
+        // 2. Leaderboards
+        renderRoadLeaderboard('worst-roads-table-container', data.worst_roads, true);
+        renderRoadLeaderboard('best-roads-table-container', data.best_roads, false);
+
+        // 3. Health Distribution Chart
+        renderRoadHealthDistributionChart(data.health_distribution);
+
+        // 4. Health Trends Chart
+        renderRoadHealthTrendsChart(data.health_trends);
+
+    } catch (err) {
+        console.error('Error in fetchRoadHealthAnalytics:', err);
+    }
+}
+
+function renderRoadLeaderboard(containerId, roadsList, isWorst) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!roadsList || roadsList.length === 0) {
+        container.innerHTML = '<div class="empty-state-card"><p>No road corridors registered yet.</p></div>';
+        return;
+    }
+
+    let html = `
+        <table class="road-table">
+            <thead>
+                <tr>
+                    <th>Corridor Name</th>
+                    <th>Type</th>
+                    <th>Health Score</th>
+                    <th>Status</th>
+                    <th>Active Issues</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    roadsList.forEach(r => {
+        const score = r.health_score;
+        let barColor = '#10b981';
+        let statusClass = 'status-excellent';
+        if (score < 30) { barColor = '#ef4444'; statusClass = 'status-critical'; }
+        else if (score < 50) { barColor = '#f97316'; statusClass = 'status-poor'; }
+        else if (score < 70) { barColor = '#f59e0b'; statusClass = 'status-fair'; }
+        else if (score < 85) { barColor = '#3b82f6'; statusClass = 'status-good'; }
+
+        html += `
+            <tr>
+                <td>
+                    <strong>${escapeHtml(r.name)}</strong>
+                    <div class="text-xs text-muted">${r.length_km} km</div>
+                </td>
+                <td><span class="badge">${r.road_type}</span></td>
+                <td>
+                    <div class="health-meter-cell">
+                        <span class="font-bold">${score}</span>
+                        <div class="health-bar-track">
+                            <div class="health-bar-fill" style="width: ${score}%; background: ${barColor};"></div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="health-status-badge ${statusClass}">${r.health_status}</span></td>
+                <td><span class="font-mono font-bold">${r.active_issues_count}</span></td>
+                <td>
+                    <button class="btn btn-xs btn-outline" onclick="openRoadDiagnosticsModal('${r.road_id}')">
+                        🔍 Inspect
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderRoadHealthDistributionChart(distribution) {
+    const ctx = document.getElementById('roadHealthDistributionChart')?.getContext('2d');
+    if (!ctx || !distribution) return;
+
+    if (roadHealthDistChart) roadHealthDistChart.destroy();
+
+    const labels = distribution.map(d => d.status);
+    const dataVals = distribution.map(d => d.count);
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#f97316', '#ef4444'];
+
+    roadHealthDistChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: dataVals,
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#0f172a'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
+            },
+            cutout: '65%'
+        }
+    });
+
+    // Render Pills
+    const pillsContainer = document.getElementById('road-health-dist-pills');
+    if (pillsContainer) {
+        pillsContainer.innerHTML = distribution.map((d, i) => `
+            <div class="health-pill">
+                <span class="dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${colors[i]}"></span>
+                <span>${d.status}: <strong>${d.count}</strong> (${d.percentage}%)</span>
+            </div>
+        `).join('');
+    }
+}
+
+function renderRoadHealthTrendsChart(trends) {
+    const ctx = document.getElementById('roadHealthTrendsChart')?.getContext('2d');
+    if (!ctx || !trends || trends.length === 0) return;
+
+    if (roadHealthTrendsChart) roadHealthTrendsChart.destroy();
+
+    const labels = trends.map(t => t.period);
+    const scores = trends.map(t => t.avg_health_score);
+
+    roadHealthTrendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Avg Health Score (0-100)',
+                data: scores,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                tension: 0.35,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#818cf8',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8' }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+async function fetchRoadRiskPredictions() {
+    const grid = document.getElementById('road-risk-cards-grid');
+    if (!grid) return;
+
+    const riskLevel = document.getElementById('risk-filter-level')?.value || '';
+    const roadType = document.getElementById('risk-filter-roadtype')?.value || '';
+    const sortBy = document.getElementById('risk-filter-sort')?.value || 'risk_desc';
+
+    const params = new URLSearchParams();
+    if (riskLevel) params.append('risk_level', riskLevel);
+    if (roadType) params.append('road_type', roadType);
+    if (sortBy) params.append('sort_by', sortBy);
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/predictions/road-risk?${params.toString()}`, {
+            headers: getAuthHeaders()
+        });
+
+        if (res.status === 401 || res.status === 403) return;
+        if (!res.ok) throw new Error('Failed to fetch predictions');
+
+        const data = await res.json();
+        const highCount = data.summary?.high_or_critical_risk_count ?? 0;
+        const highBadge = document.getElementById('kpi-road-high-risk-count');
+        if (highBadge) highBadge.textContent = highCount;
+
+        if (!data.predictions || data.predictions.length === 0) {
+            grid.innerHTML = '<div class="empty-state-card w-100"><p>No corridors match selected risk filters.</p></div>';
+            return;
+        }
+
+        grid.innerHTML = data.predictions.map(p => {
+            const rLevel = p.risk_level.toLowerCase();
+            const probPct = Math.round(p.worsening_probability * 100);
+
+            return `
+                <div class="road-risk-card card-risk-${rLevel}">
+                    <div>
+                        <div class="risk-card-head">
+                            <div>
+                                <h4 class="risk-card-title">${escapeHtml(p.name)}</h4>
+                                <span class="risk-card-meta">${p.road_type} • Importance: ${p.importance}</span>
+                            </div>
+                            <span class="risk-level-tag risk-${rLevel}">${p.risk_level}</span>
+                        </div>
+
+                        <div class="risk-metrics-row">
+                            <div class="risk-metric-item">
+                                <span class="risk-metric-lbl">Risk Score</span>
+                                <span class="risk-metric-val">${p.risk_score} / 100</span>
+                            </div>
+                            <div class="risk-metric-item">
+                                <span class="risk-metric-lbl">Worsening Likelihood</span>
+                                <span class="risk-metric-val text-primary-glow">${probPct}%</span>
+                            </div>
+                        </div>
+
+                        ${p.top_contributing_factor ? `
+                            <div class="top-factor-preview">
+                                <strong>Top Driver:</strong> ${escapeHtml(p.top_contributing_factor)}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="d-flex justify-between align-center mt-2">
+                        <span class="text-xs text-muted">Health: ${p.current_health_score}/100</span>
+                        <button class="btn btn-xs btn-primary" onclick="openRoadDiagnosticsModal('${p.road_id}')">
+                            🔬 Diagnostics
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error('Error in fetchRoadRiskPredictions:', err);
+    }
+}
+
+window.openRoadDiagnosticsModal = async function(roadId) {
+    const modalBackdrop = document.getElementById('modal-road-diagnostics-backdrop');
+    const modalBody = document.getElementById('modal-road-body');
+    const modalTitle = document.getElementById('modal-road-name');
+    const modalType = document.getElementById('modal-road-type-badge');
+
+    if (!modalBackdrop || !modalBody) return;
+
+    modalBody.innerHTML = '<div class="loading-state">Computing multi-factor health and ML risk breakdown...</div>';
+    modalBackdrop.classList.add('open');
+
+    try {
+        const [healthRes, riskRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/roads/${roadId}/health`, { headers: getAuthHeaders() }),
+            fetch(`${API_BASE_URL}/roads/${roadId}/risk`, { headers: getAuthHeaders() }),
+        ]);
+
+        if (!healthRes.ok || !riskRes.ok) throw new Error('Failed to retrieve road diagnostics');
+
+        const hData = await healthRes.json();
+        const rData = await riskRes.json();
+
+        modalTitle.textContent = hData.name;
+        modalType.textContent = `${hData.road_type} • ${hData.importance}`;
+
+        const factors = hData.factors || {};
+        const metrics = hData.metrics || {};
+        const riskFactors = rData.contributing_factors || [];
+
+        modalBody.innerHTML = `
+            <div class="diag-grid-2col mb-4">
+                <!-- Left: 6 Normalized Health Penalties -->
+                <div class="glass-card">
+                    <div class="card-head">
+                        <h4>🏥 Health Engine Component Penalties</h4>
+                        <span class="health-status-badge status-${hData.health_status.toLowerCase()}">${hData.health_score} / 100 (${hData.health_status})</span>
+                    </div>
+
+                    <div class="factor-penalty-item">
+                        <span>Active Unresolved Issues (${metrics.active_issues_count})</span>
+                        <div class="factor-penalty-bar-wrap">
+                            <div class="factor-penalty-fill" style="width: ${factors.active_issue_penalty}%;"></div>
+                        </div>
+                        <span class="font-mono text-xs">${factors.active_issue_penalty}%</span>
+                    </div>
+
+                    <div class="factor-penalty-item">
+                        <span>Severity Weight (${metrics.critical_issues_count} Critical, ${metrics.high_issues_count} High)</span>
+                        <div class="factor-penalty-bar-wrap">
+                            <div class="factor-penalty-fill" style="width: ${factors.severity_penalty}%;"></div>
+                        </div>
+                        <span class="font-mono text-xs">${factors.severity_penalty}%</span>
+                    </div>
+
+                    <div class="factor-penalty-item">
+                        <span>Corridor Density (${metrics.issues_per_km} / km)</span>
+                        <div class="factor-penalty-bar-wrap">
+                            <div class="factor-penalty-fill" style="width: ${factors.density_penalty}%;"></div>
+                        </div>
+                        <span class="font-mono text-xs">${factors.density_penalty}%</span>
+                    </div>
+
+                    <div class="factor-penalty-item">
+                        <span>Report Velocity (30d Reports)</span>
+                        <div class="factor-penalty-bar-wrap">
+                            <div class="factor-penalty-fill" style="width: ${factors.report_frequency_penalty}%;"></div>
+                        </div>
+                        <span class="font-mono text-xs">${factors.report_frequency_penalty}%</span>
+                    </div>
+
+                    <div class="factor-penalty-item">
+                        <span>Resolution Turnaround (${metrics.avg_resolution_hours ? metrics.avg_resolution_hours + 'h' : 'N/A'})</span>
+                        <div class="factor-penalty-bar-wrap">
+                            <div class="factor-penalty-fill" style="width: ${factors.resolution_time_penalty}%;"></div>
+                        </div>
+                        <span class="font-mono text-xs">${factors.resolution_time_penalty}%</span>
+                    </div>
+
+                    <div class="factor-penalty-item">
+                        <span>Recent Surge (${metrics.recent_7d_reports_count} in past 7d)</span>
+                        <div class="factor-penalty-bar-wrap">
+                            <div class="factor-penalty-fill" style="width: ${factors.recent_incidents_penalty}%;"></div>
+                        </div>
+                        <span class="font-mono text-xs">${factors.recent_incidents_penalty}%</span>
+                    </div>
+                </div>
+
+                <!-- Right: Predictive Risk & Explainability -->
+                <div class="glass-card">
+                    <div class="card-head">
+                        <h4>🔮 ML Deterioration Risk Forecast</h4>
+                        <span class="risk-level-tag risk-${rData.risk_level.toLowerCase()}">${rData.risk_score} / 100 (${rData.risk_level})</span>
+                    </div>
+
+                    <div class="risk-metrics-row mb-3">
+                        <div class="risk-metric-item">
+                            <span class="risk-metric-lbl">30-Day Worsening Likelihood</span>
+                            <span class="risk-metric-val text-primary-glow">${Math.round(rData.worsening_probability * 100)}%</span>
+                        </div>
+                        <div class="risk-metric-item">
+                            <span class="risk-metric-lbl">Model Version</span>
+                            <span class="risk-metric-val text-xs font-mono">${rData.model_version}</span>
+                        </div>
+                    </div>
+
+                    <h5 class="text-xs text-muted mb-2">PRIMARY EXPLAINABILITY FACTORS:</h5>
+                    <div class="explainability-factors-list">
+                        ${riskFactors.map(f => `
+                            <div class="contributing-factor-box">
+                                <div class="factor-head-row">
+                                    <span>${escapeHtml(f.factor_name)}</span>
+                                    <span class="text-primary-glow">+${f.impact_percentage}%</span>
+                                </div>
+                                <p class="factor-desc-text">${escapeHtml(f.description)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disclaimer Notice Footer -->
+            <div class="disclaimer-alert-card">
+                <div class="disclaimer-icon">ℹ️</div>
+                <div class="disclaimer-content text-xs">
+                    ${rData.disclaimer}
+                </div>
+            </div>
+        `;
+
+    } catch (err) {
+        modalBody.innerHTML = `<div class="p-3 text-critical">Failed to load diagnostics: ${err.message}</div>`;
+    }
+};
+
+function closeRoadDiagnosticsModal() {
+    document.getElementById('modal-road-diagnostics-backdrop')?.classList.remove('open');
+}
+

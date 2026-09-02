@@ -95,6 +95,10 @@
                     <span class="nav-icon">🗺️</span>
                     <span class="nav-label">Public Map View</span>
                 </button>
+                <button class="nav-tab" data-view="road-health">
+                    <span class="nav-icon">🛣️</span>
+                    <span class="nav-label">Road Health & AI Risk</span>
+                </button>
                 <button class="nav-tab" data-view="dashcam">
                     <span class="nav-icon">📹</span>
                     <span class="nav-label">Dashcam Edge AI</span>
@@ -571,8 +575,151 @@
                     </div>
                 </div>
             </section>
+
+            <!-- ================= VIEW 7: ROAD HEALTH & PREDICTIVE AI RISK ================= -->
+            <section class="view-panel" id="view-road-health">
+                <div class="panel-header-banner">
+                    <div>
+                        <h2>🛣️ Road Health Engine & Predictive AI Risk</h2>
+                        <p class="subtitle">Multi-factor physical corridor health indexing (0-100) and ML deterioration forecasting.</p>
+                    </div>
+                    <div class="banner-actions">
+                        <span class="badge badge-warning">⚠️ Non-Official Advisory</span>
+                        <button class="btn btn-sm btn-primary" id="btn-refresh-road-health">🔄 Refresh Network</button>
+                    </div>
+                </div>
+
+                <!-- Indicator Disclaimer Alert -->
+                <div class="disclaimer-alert-card mb-4">
+                    <div class="disclaimer-icon">ℹ️</div>
+                    <div class="disclaimer-content">
+                        <strong>Operational Indicator Disclaimer:</strong> Road health indices (0–100) and predictive risk ratings are application-generated estimates synthesized from crowdsourced hazard densities, severity weights, report velocity, resolution turnaround, and machine learning models. They are designed for operational maintenance triage and do not constitute official government road engineering ratings.
+                    </div>
+                </div>
+
+                <!-- Health & Risk KPI Metric Ribbon -->
+                <div class="kpi-grid mb-4">
+                    <div class="kpi-card" id="card-road-avg-health">
+                        <div class="kpi-icon-wrap bg-blue">🏥</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Average Network Health</span>
+                            <h3 class="kpi-value" id="kpi-road-avg-health">-- / 100</h3>
+                            <span class="kpi-sub" id="kpi-road-network-status">Network Health</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-road-monitored">
+                        <div class="kpi-icon-wrap bg-indigo">🛣️</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Monitored Corridors</span>
+                            <h3 class="kpi-value" id="kpi-road-total-segments">0</h3>
+                            <span class="kpi-sub" id="kpi-road-total-km">0.0 km monitored</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card kpi-highlight-critical" id="card-road-critical">
+                        <div class="kpi-icon-wrap bg-critical">⚠️</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">Critical Corridors</span>
+                            <h3 class="kpi-value text-critical" id="kpi-road-critical-count">0</h3>
+                            <span class="kpi-sub">Health &lt; 30 / 100</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="card-road-high-risk">
+                        <div class="kpi-icon-wrap bg-orange">🔮</div>
+                        <div class="kpi-body">
+                            <span class="kpi-title">High AI Predictive Risk</span>
+                            <h3 class="kpi-value" id="kpi-road-high-risk-count">0</h3>
+                            <span class="kpi-sub">Imminent deterioration</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Column Leaderboard: Worst & Best Roads -->
+                <div class="charts-2col-grid mb-4">
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>🚨 Most Deteriorated Road Corridors (Worst Health)</h3>
+                            <span class="badge badge-danger">Priority Action</span>
+                        </div>
+                        <div class="road-leaderboard-wrap" id="worst-roads-table-container">
+                            <div class="loading-state">Loading road health data...</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>✨ Highest Health Road Corridors (Best Condition)</h3>
+                            <span class="badge badge-success">Pristine State</span>
+                        </div>
+                        <div class="road-leaderboard-wrap" id="best-roads-table-container">
+                            <div class="loading-state">Loading pristine corridors...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row: Health Distribution & Trends -->
+                <div class="charts-2col-grid mb-4">
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>📊 Network Health Category Distribution</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="roadHealthDistributionChart"></canvas>
+                        </div>
+                        <div class="health-dist-legend" id="road-health-dist-pills"></div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-head">
+                            <h3>📈 Multi-Week Network Health Trends</h3>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="roadHealthTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Predictive Deterioration Risk Radar Section -->
+                <div class="glass-card mb-4">
+                    <div class="card-head flex-wrap">
+                        <div>
+                            <h3>🤖 Machine Learning Predictive Road Risk Radar</h3>
+                            <p class="text-sm text-muted">Gradient Boosting model forecasts 30-day worsening probability & primary hazard drivers</p>
+                        </div>
+                        <div class="filter-controls-flex">
+                            <select id="risk-filter-level" class="form-select form-select-sm">
+                                <option value="">All Risk Levels</option>
+                                <option value="CRITICAL">Critical Risk Only</option>
+                                <option value="HIGH">High Risk</option>
+                                <option value="MEDIUM">Medium Risk</option>
+                                <option value="LOW">Low Risk</option>
+                            </select>
+                            <select id="risk-filter-roadtype" class="form-select form-select-sm">
+                                <option value="">All Road Types</option>
+                                <option value="HIGHWAY">Highway</option>
+                                <option value="ARTERIAL">Arterial</option>
+                                <option value="COLLECTOR">Collector</option>
+                                <option value="LOCAL">Local</option>
+                                <option value="RESIDENTIAL">Residential</option>
+                            </select>
+                            <select id="risk-filter-sort" class="form-select form-select-sm">
+                                <option value="risk_desc">Highest Risk First</option>
+                                <option value="health_asc">Lowest Health First</option>
+                                <option value="risk_asc">Lowest Risk First</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="road-risk-grid mt-3" id="road-risk-cards-grid">
+                        <div class="loading-state">Evaluating predictive risk models...</div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
+
 
     <!-- ================= ISSUE INSPECTION & MANAGEMENT DRAWER / MODAL ================= -->
     <div class="modal-backdrop" id="issue-detail-modal">
@@ -852,6 +999,22 @@
                 <div class="console-logs" id="logs">
                     <div class="log-line system">[SYSTEM] Diagnostics console ready.</div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ROAD HEALTH & PREDICTIVE RISK MODAL ================= -->
+    <div class="modal-backdrop" id="modal-road-diagnostics-backdrop">
+        <div class="modal-content modal-lg" id="road-diagnostics-content">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="badge" id="modal-road-type-badge">ARTERIAL</span>
+                    <h3 id="modal-road-name">Road Corridor Diagnostics</h3>
+                </div>
+                <button class="btn-close" id="btn-close-road-modal">&times;</button>
+            </div>
+            <div class="modal-body-scroll" id="modal-road-body">
+                <!-- Injected via JavaScript -->
             </div>
         </div>
     </div>
